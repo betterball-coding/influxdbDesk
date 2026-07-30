@@ -58,10 +58,9 @@ InfluxDesk 是一个专注于 InfluxDB 1.x 的中文桌面工作台。它把连�
 | 文件 | 用途 |
 | --- | --- |
 | `InfluxDesk-0.1.0-windows-x64-portable.zip` | 解压后直接运行的便携版本 |
-| `InfluxDesk-0.1.0-windows-x64-unsigned.msi` | Windows x64 安装包 |
 | `SHA256SUMS.txt` | 发布文件完整性校验 |
 
-> v0.1.0 是功能预览版，EXE 和 MSI 尚未进行 Authenticode 商业代码签名。Windows SmartScreen 可能显示未知发布者提示，请只从本仓库 Releases 下载，并在运行前核对 SHA-256。
+> v0.1.0 是功能预览版，EXE 尚未进行 Authenticode 商业代码签名。Windows SmartScreen 可能显示未知发布者提示，请只从本仓库 Releases 下载，并在运行前核对 SHA-256。
 
 ### 系统要求
 
@@ -72,8 +71,8 @@ InfluxDesk 是一个专注于 InfluxDB 1.x 的中文桌面工作台。它把连�
 
 ## 快速开始
 
-1. 从 Releases 下载便携 ZIP 或 MSI，并核对 `SHA256SUMS.txt`。
-2. 解压运行 `InfluxDesk.exe`，或通过 MSI 完成安装。
+1. 从 Releases 下载便携 ZIP，并核对 `SHA256SUMS.txt`。
+2. 解压并运行 `InfluxDesk.exe`。
 3. 打开“连接”，填写 InfluxDB 地址、端口、账号和默认数据库。
 4. 测试并打开连接，在 Schema 面板选择 measurement 后编写 InfluxQL。
 5. 保持“保护模式”即可安全执行只读查询和逻辑导出；写操作需要显式解锁并完成预览确认。

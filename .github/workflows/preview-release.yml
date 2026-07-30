@@ -17,7 +17,37 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.12'
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Test and build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm audit --audit-level=moderate
+          npm test
+          npm run build
+
+      - name: Test backend
+        run: |
+          go test ./...
+          go vet ./...
+
   build-and-release:
+    needs: verify
     runs-on: windows-2022
     env:
       RELEASE_VERSION: ${{ inputs.version }}
@@ -35,10 +65,6 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-
       - name: Validate version
         shell: pwsh
         run: |
@@ -46,17 +72,11 @@ jobs:
             throw 'Version must contain exactly three numeric components.'
           }
 
-      - name: Test and build frontend
+      - name: Build frontend
         working-directory: frontend
         run: |
           npm ci
-          npm test
           npm run build
-
-      - name: Test backend
-        run: |
-          go test ./...
-          go vet ./...
 
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
@@ -69,7 +89,7 @@ jobs:
           $config | ConvertTo-Json -Depth 10 | Set-Content .\wails.json -Encoding utf8NoBOM
 
       - name: Build Windows x64 executable
-        run: wails build -platform windows/amd64 -clean -m -webview2 error -nocolour -trimpath
+        run: wails build -platform windows/amd64 -clean -m -webview2 error -nocolour -trimpath -s -skipbindings
 
       - name: Verify executable version
         shell: pwsh
@@ -79,14 +99,6 @@ jobs:
             throw "Executable version is $version, expected $env:RELEASE_VERSION."
           }
 
-      - name: Build unsigned WiX 7 MSI
-        shell: pwsh
-        run: |
-          dotnet build .\build\windows\wix\InfluxDesk.wixproj `
-            -c Release `
-            -p:ProductVersion=$env:RELEASE_VERSION `
-            -p:SourceDir="$pwd\build\bin"
-
       - name: Package preview artifacts
         shell: pwsh
         run: |
@@ -94,18 +106,9 @@ jobs:
           $portable = ".\release\InfluxDesk-$($env:RELEASE_VERSION)-windows-x64-portable.zip"
           Compress-Archive -LiteralPath .\build\bin\InfluxDesk.exe -DestinationPath $portable
 
-          $sourceMsi = Get-ChildItem .\build\windows\wix\bin\Release -Filter *.msi -Recurse | Select-Object -First 1
-          if ($null -eq $sourceMsi) { throw 'WiX completed without producing an MSI.' }
-          $msi = ".\release\InfluxDesk-$($env:RELEASE_VERSION)-windows-x64-unsigned.msi"
-          Copy-Item -LiteralPath $sourceMsi.FullName -Destination $msi
-
-          $assets = @($portable, $msi)
-          $checksums = foreach ($asset in $assets) {
-            $file = Get-Item -LiteralPath $asset
-            $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            "$hash  $($file.Name)"
-          }
-          $checksums | Set-Content .\release\SHA256SUMS.txt -Encoding ascii
+          $file = Get-Item -LiteralPath $portable
+          $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($file.Name)" | Set-Content .\release\SHA256SUMS.txt -Encoding ascii
 
           @"
           InfluxDesk v$($env:RELEASE_VERSION)
@@ -114,8 +117,7 @@ jobs:
 
           Assets:
           - Portable ZIP containing InfluxDesk.exe
-          - Unsigned WiX MSI installer
-          - SHA-256 checksums
+          - SHA-256 checksum
 
           This preview is not Authenticode-signed. Windows may show an unknown publisher warning.
           "@ | Set-Content .\release\RELEASE_NOTES.md -Encoding utf8NoBOM
@@ -127,7 +129,6 @@ jobs:
           if-no-files-found: error
           path: |
             release/*.zip
-            release/*.msi
             release/SHA256SUMS.txt
 
       - name: Create GitHub prerelease
@@ -142,5 +143,4 @@ jobs:
             --prerelease `
             --notes-file .\release\RELEASE_NOTES.md `
             ".\release\InfluxDesk-$($env:RELEASE_VERSION)-windows-x64-portable.zip" `
-            ".\release\InfluxDesk-$($env:RELEASE_VERSION)-windows-x64-unsigned.msi" `
             .\release\SHA256SUMS.txt
