@@ -69,7 +69,7 @@ jobs:
           $config | ConvertTo-Json -Depth 10 | Set-Content .\wails.json -Encoding utf8NoBOM
 
       - name: Build Windows x64 executable
-        run: wails build -platform windows/amd64 -clean -m -nopackage -webview2 error -nocolour -trimpath
+        run: wails build -platform windows/amd64 -clean -m -webview2 error -nocolour -trimpath
 
       - name: Verify executable version
         shell: pwsh
