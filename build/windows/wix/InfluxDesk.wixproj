@@ -1,0 +1,10 @@
+<Project Sdk="WixToolset.Sdk/7.0.0">
+  <PropertyGroup>
+    <OutputName>InfluxDesk-$(ProductVersion)-x64</OutputName>
+    <OutputType>Package</OutputType>
+    <Platform>x64</Platform>
+    <ProductVersion Condition="'$(ProductVersion)' == ''">0.0.0</ProductVersion>
+    <SourceDir Condition="'$(SourceDir)' == ''">$(MSBuildThisFileDirectory)..\..\bin</SourceDir>
+    <DefineConstants>ProductVersion=$(ProductVersion);SourceDir=$(SourceDir)</DefineConstants>
+  </PropertyGroup>
+</Project>

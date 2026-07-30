@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>InfluxDesk 界面概念</title>
+    <link rel="stylesheet" href="./prototype.css" />
+  </head>
+  <body class="concept-index">
+    <header class="concept-index__header">
+      <div>
+        <span>INFLUXDESK / DESIGN STUDY</span>
+        <h1>选择工作台方向</h1>
+      </div>
+      <p>三套方案保留同一组产品能力，但采用不同的主从关系、操作顺序与页面骨架。</p>
+    </header>
+    <main class="concept-grid">
+      <a class="concept-card concept-card--a" href="./concept-a.html">
+        <div class="concept-preview"><iframe title="查询画布预览" src="./concept-a.html" tabindex="-1"></iframe></div>
+        <span>A</span><h2>查询画布</h2><p>编辑器与结果占据主区，Schema 和查询辅助在右侧上下联动。</p>
+      </a>
+      <a class="concept-card concept-card--b" href="./concept-b.html">
+        <div class="concept-preview"><iframe title="导航构建预览" src="./concept-b.html" tabindex="-1"></iframe></div>
+        <span>B</span><h2>导航构建</h2><p>Schema 作为左侧主轴，查询辅助改为底部横向构建流程。</p>
+      </a>
+      <a class="concept-card concept-card--c" href="./concept-c.html">
+        <div class="concept-preview"><iframe title="结果审阅预览" src="./concept-c.html" tabindex="-1"></iframe></div>
+        <span>C</span><h2>结果审阅</h2><p>左侧堆叠资源工具，右侧先看结果、再回到下方编辑器。</p>
+      </a>
+    </main>
+  </body>
+</html>

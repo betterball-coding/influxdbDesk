@@ -1,0 +1,130 @@
+name: windows-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Three-part release version
+        required: true
+        type: string
+      msi_url:
+        description: Final HTTPS URL for the MSI
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.12'
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Validate version
+        shell: pwsh
+        run: |
+          if ('${{ inputs.version }}' -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
+            throw 'Version must contain exactly three numeric components.'
+          }
+
+      - name: Test backend
+        run: go test ./...
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
+
+      - name: Build x64 executable
+        shell: pwsh
+        env:
+          UPDATE_PUBLIC_KEY: ${{ vars.UPDATE_PUBLIC_KEY_BASE64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:UPDATE_PUBLIC_KEY)) { throw 'UPDATE_PUBLIC_KEY_BASE64 is required.' }
+          wails build -platform windows/amd64 -clean -ldflags "-X github.com/influxdesk/influxdesk/internal/update.EmbeddedChannelPublicKeyBase64=$env:UPDATE_PUBLIC_KEY"
+
+      - name: Sign executable
+        shell: pwsh
+        env:
+          SIGN_COMMAND: ${{ secrets.SIGN_COMMAND }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SIGN_COMMAND)) { throw 'SIGN_COMMAND is required.' }
+          & powershell -NoProfile -Command ($env:SIGN_COMMAND -replace '\{file\}', 'build\bin\InfluxDesk.exe')
+
+      - name: Build WiX 7 MSI
+        run: dotnet build .\build\windows\wix\InfluxDesk.wixproj -c Release -p:ProductVersion=${{ inputs.version }} -p:SourceDir="$pwd\build\bin"
+
+      - name: Locate MSI
+        id: locate-msi
+        shell: pwsh
+        run: |
+          $msi = Get-ChildItem .\build\windows\wix\bin\Release -Filter *.msi -Recurse | Select-Object -First 1
+          if ($null -eq $msi) { throw 'WiX completed without producing an MSI.' }
+          "path=$($msi.FullName)" >> $env:GITHUB_OUTPUT
+
+      - name: Sign MSI
+        shell: pwsh
+        env:
+          SIGN_COMMAND: ${{ secrets.SIGN_COMMAND }}
+        run: |
+          & powershell -NoProfile -Command ($env:SIGN_COMMAND -replace '\{file\}', '${{ steps.locate-msi.outputs.path }}')
+
+      - name: Create and verify signed update manifest
+        shell: pwsh
+        env:
+          UPDATE_PRIVATE_KEY_BASE64: ${{ secrets.UPDATE_PRIVATE_KEY_BASE64 }}
+          UPDATE_PUBLIC_KEY: ${{ vars.UPDATE_PUBLIC_KEY_BASE64 }}
+        run: |
+          if ('${{ inputs.msi_url }}' -notmatch '^https://') { throw 'MSI URL must use HTTPS.' }
+          go run .\cmd\releasetool create `
+            -version '${{ inputs.version }}' `
+            -msi '${{ steps.locate-msi.outputs.path }}' `
+            -url '${{ inputs.msi_url }}' `
+            -out .\release
+          go run .\cmd\releasetool verify `
+            -current 0.0.0 `
+            -manifest .\release\manifest.json `
+            -signature .\release\manifest.sig `
+            -msi '${{ steps.locate-msi.outputs.path }}' `
+            -public-key $env:UPDATE_PUBLIC_KEY
+
+      - name: Require signed release and update artifacts
+        shell: pwsh
+        run: |
+          .\scripts\verify-release.ps1 `
+            -Version '${{ inputs.version }}' `
+            -ExePath .\build\bin\InfluxDesk.exe `
+            -MsiPath '${{ steps.locate-msi.outputs.path }}' `
+            -ManifestPath .\release\manifest.json `
+            -ManifestSignaturePath .\release\manifest.sig
+
+      - name: Upload signed artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: InfluxDesk-${{ inputs.version }}-windows-x64
+          if-no-files-found: error
+          path: |
+            build/bin/InfluxDesk.exe
+            ${{ steps.locate-msi.outputs.path }}
+            release/manifest.json
+            release/manifest.sig

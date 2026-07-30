@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.12'
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Go test and vet
+        run: |
+          go test ./...
+          go vet ./...
+      - name: Race-sensitive packages
+        run: go test -race ./internal/transport ./internal/query ./internal/store ./internal/tasks ./internal/protection ./internal/operation ./internal/transfer
+      - name: Frontend clean install, audit, test and build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm audit --audit-level=moderate
+          npm test
+          npm run build
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
+      - name: Cross-build Windows x64 executable
+        run: wails build -platform windows/amd64 -clean -m -nopackage -webview2 error -nocolour
+      - name: Require executable artifact
+        run: test -s build/bin/InfluxDesk.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-ci-windows-x64
+          if-no-files-found: error
+          path: build/bin/InfluxDesk.exe

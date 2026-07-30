@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+      Name="InfluxDesk"
+      Manufacturer="InfluxDesk"
+      Version="$(var.ProductVersion)"
+      UpgradeCode="{7F456FFB-A2DC-49D2-AF8C-F6438070B516}"
+      Scope="perMachine"
+      InstallerVersion="500"
+      Compressed="yes">
+
+    <SummaryInformation Platform="x64" />
+    <MajorUpgrade
+        DowngradeErrorMessage="A newer version of InfluxDesk is already installed."
+        AllowSameVersionUpgrades="no"
+        Schedule="afterInstallInitialize" />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Property Id="WEBVIEW2_RUNTIME_VERSION">
+      <RegistrySearch
+          Id="FindEvergreenWebView2"
+          Root="HKLM"
+          Key="SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+          Name="pv"
+          Type="raw"
+          Bitness="always32" />
+    </Property>
+    <Launch Condition="Installed OR WEBVIEW2_RUNTIME_VERSION"
+            Message="Microsoft Edge WebView2 Evergreen Runtime (x64) must be installed by your administrator before installing InfluxDesk." />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="InfluxDesk">
+        <Component Id="InfluxDeskExecutable" Guid="{F4D9AD13-06BB-4C7A-AD64-0F0CC9E36C8D}" Bitness="always64">
+          <File Id="InfluxDeskExe" Source="$(var.SourceDir)\InfluxDesk.exe" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="ProductFeature" Title="InfluxDesk" Level="1">
+      <ComponentRef Id="InfluxDeskExecutable" />
+    </Feature>
+  </Package>
+</Wix>

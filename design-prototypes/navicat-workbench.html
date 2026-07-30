@@ -1,0 +1,1929 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>InfluxDesk - 左侧资源工作台原型</title>
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer></script>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Segoe UI Variable", "Microsoft YaHei UI", "Segoe UI", sans-serif;
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        letter-spacing: 0;
+        --titlebar: #1d282d;
+        --titlebar-border: #11191c;
+        --chrome: #f5f7f7;
+        --app: #e8edef;
+        --surface: #ffffff;
+        --surface-soft: #f8fafa;
+        --surface-hover: #edf3f3;
+        --surface-selected: #dcefeb;
+        --text: #172227;
+        --soft: #4d5c62;
+        --muted: #78868b;
+        --border: #d0dadd;
+        --border-strong: #aebdc1;
+        --accent: #087c70;
+        --accent-dark: #05655c;
+        --accent-soft: #d9efeb;
+        --blue: #2464ad;
+        --blue-soft: #e4eef9;
+        --amber: #a76307;
+        --amber-soft: #fff0d5;
+        --danger: #b9473d;
+        --danger-soft: #fbe7e4;
+        --success: #24724d;
+        --success-soft: #e0f1e8;
+        --mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+        --shadow: 0 18px 54px rgba(20, 35, 41, 0.24);
+      }
+
+      * {
+        box-sizing: border-box;
+        letter-spacing: 0;
+      }
+
+      html,
+      body {
+        width: 100%;
+        min-width: 1080px;
+        height: 100%;
+        min-height: 680px;
+        margin: 0;
+        overflow: hidden;
+        background: var(--app);
+      }
+
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+        letter-spacing: 0;
+      }
+
+      button,
+      select {
+        cursor: pointer;
+      }
+
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible,
+      [tabindex]:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: -1px;
+      }
+
+      svg {
+        display: block;
+        flex: 0 0 auto;
+      }
+
+      .app {
+        display: grid;
+        grid-template-rows: 34px minmax(0, 1fr) 26px;
+        width: 100vw;
+        height: 100vh;
+        min-width: 1080px;
+        min-height: 680px;
+        color: var(--text);
+        background: var(--app);
+      }
+
+      .titlebar {
+        position: relative;
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        color: #d9e4e7;
+        background: var(--titlebar);
+        border-bottom: 1px solid var(--titlebar-border);
+        user-select: none;
+      }
+
+      .brand {
+        display: flex;
+        height: 100%;
+        align-items: center;
+        gap: 8px;
+        padding: 0 13px;
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      .brand svg {
+        color: #5bd6c8;
+      }
+
+      .window-title {
+        position: absolute;
+        left: 50%;
+        max-width: calc(100% - 360px);
+        overflow: hidden;
+        margin: 0;
+        color: #90a0a5;
+        font-size: 10px;
+        text-overflow: ellipsis;
+        transform: translateX(-50%);
+        white-space: nowrap;
+      }
+
+      .window-actions {
+        display: flex;
+        height: 100%;
+        margin-left: auto;
+      }
+
+      .window-actions span {
+        display: grid;
+        width: 44px;
+        height: 100%;
+        place-items: center;
+        color: #bdc8cb;
+        font-size: 13px;
+      }
+
+      .window-actions span:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .window-actions span:last-child:hover {
+        background: #b84038;
+      }
+
+      .workbench {
+        display: grid;
+        grid-template-columns: var(--explorer-width, 286px) 5px minmax(0, 1fr);
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .workbench.is-collapsed {
+        grid-template-columns: 44px 5px minmax(0, 1fr);
+      }
+
+      .explorer {
+        display: grid;
+        grid-template-rows: 42px 46px 39px minmax(0, 1fr) 25px;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+      }
+
+      .explorer-heading {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 8px;
+        padding: 0 8px 0 12px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .explorer-heading svg:first-child {
+        color: var(--accent);
+      }
+
+      .explorer-heading h2 {
+        min-width: 0;
+        margin: 0;
+        flex: 1;
+        overflow: hidden;
+        font-size: 12px;
+        font-weight: 690;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .icon-button {
+        display: grid;
+        width: 29px;
+        height: 29px;
+        flex: 0 0 auto;
+        place-items: center;
+        color: var(--soft);
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 4px;
+      }
+
+      .icon-button:hover {
+        color: var(--accent-dark);
+        background: var(--surface-hover);
+        border-color: var(--border);
+      }
+
+      .icon-button.is-danger:hover {
+        color: var(--danger);
+        background: var(--danger-soft);
+        border-color: #edc3bd;
+      }
+
+      .connection-tools {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 2px;
+        padding: 6px 8px;
+        background: var(--surface-soft);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .active-connection {
+        display: flex;
+        min-width: 0;
+        height: 30px;
+        flex: 1;
+        align-items: center;
+        gap: 7px;
+        padding: 0 7px;
+        color: var(--text);
+        text-align: left;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+      }
+
+      .active-connection:hover {
+        border-color: var(--border-strong);
+      }
+
+      .active-connection svg:first-child {
+        color: var(--accent);
+      }
+
+      .active-connection[data-state="offline"] svg:first-child {
+        color: var(--muted);
+      }
+
+      .active-connection span {
+        min-width: 0;
+        flex: 1;
+        overflow: hidden;
+        font-size: 10px;
+        font-weight: 650;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .tree-search {
+        position: relative;
+        display: flex;
+        align-items: center;
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .tree-search svg {
+        position: absolute;
+        left: 16px;
+        color: var(--muted);
+        pointer-events: none;
+      }
+
+      .tree-search input {
+        width: 100%;
+        height: 27px;
+        padding: 0 28px;
+        color: var(--text);
+        font-size: 10px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+      }
+
+      .tree-search input::placeholder {
+        color: #96a1a5;
+      }
+
+      .tree-search kbd {
+        position: absolute;
+        right: 15px;
+        padding: 1px 4px;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 8px;
+        background: var(--chrome);
+        border: 1px solid var(--border);
+        border-radius: 3px;
+      }
+
+      .resource-tree {
+        min-width: 0;
+        min-height: 0;
+        overflow: auto;
+        padding: 5px 0 12px;
+        scrollbar-color: #b8c4c7 transparent;
+        scrollbar-width: thin;
+      }
+
+      .tree-row {
+        display: flex;
+        width: 100%;
+        height: 27px;
+        min-width: 0;
+        align-items: center;
+        gap: 6px;
+        padding: 0 9px 0 calc(9px + var(--depth, 0) * 16px);
+        color: var(--soft);
+        font-size: 10px;
+        text-align: left;
+        background: transparent;
+        border: 0;
+        border-left: 2px solid transparent;
+      }
+
+      .tree-row:hover {
+        color: var(--text);
+        background: var(--surface-hover);
+      }
+
+      .tree-row.is-selected {
+        color: var(--accent-dark);
+        background: var(--surface-selected);
+        border-left-color: var(--accent);
+      }
+
+      .tree-row[hidden] {
+        display: none;
+      }
+
+      .tree-row .caret {
+        color: var(--muted);
+      }
+
+      .tree-row .tree-kind {
+        color: var(--blue);
+      }
+
+      .tree-row[data-kind="connection"] .tree-kind {
+        color: var(--accent);
+      }
+
+      .tree-row[data-kind="field"] .tree-kind,
+      .tree-row[data-kind="tag"] .tree-kind {
+        color: var(--amber);
+      }
+
+      .tree-row > span:not(.tree-count) {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .tree-row strong {
+        min-width: 0;
+        overflow: hidden;
+        font-weight: 680;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .tree-count {
+        min-width: 18px;
+        margin-left: auto;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 8px;
+        text-align: right;
+      }
+
+      .tree-status {
+        margin-left: auto;
+        color: var(--success);
+        font-size: 8px;
+      }
+
+      .explorer-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 9px;
+        color: var(--muted);
+        font-size: 9px;
+        background: var(--surface-soft);
+        border-top: 1px solid var(--border);
+      }
+
+      .connection-picker-popover {
+        position: fixed;
+        z-index: 45;
+        display: none;
+        width: 272px;
+        overflow: hidden;
+        background: var(--surface);
+        border: 1px solid var(--border-strong);
+        border-radius: 5px;
+        box-shadow: 0 12px 34px rgba(20, 35, 41, 0.2);
+      }
+
+      .connection-picker-popover.is-open {
+        display: block;
+      }
+
+      .connection-picker-heading {
+        display: flex;
+        height: 31px;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 10px;
+        color: var(--muted);
+        font-size: 9px;
+        background: var(--surface-soft);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .connection-picker-option {
+        display: grid;
+        width: 100%;
+        min-height: 52px;
+        grid-template-columns: 10px minmax(0, 1fr) 16px;
+        align-items: center;
+        gap: 9px;
+        padding: 6px 10px;
+        color: var(--soft);
+        text-align: left;
+        background: var(--surface);
+        border: 0;
+        border-bottom: 1px solid #e8edef;
+      }
+
+      .connection-picker-option:last-child {
+        border-bottom: 0;
+      }
+
+      .connection-picker-option:hover {
+        color: var(--text);
+        background: var(--surface-hover);
+      }
+
+      .connection-picker-option.is-selected {
+        color: var(--accent-dark);
+        background: var(--accent-soft);
+      }
+
+      .connection-option-dot {
+        width: 8px;
+        height: 8px;
+        background: #2ca76f;
+        border: 2px solid #caecdc;
+        border-radius: 50%;
+      }
+
+      .connection-option-dot.is-offline {
+        background: #9aa6aa;
+        border-color: #e3e8e9;
+      }
+
+      .connection-option-copy {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .connection-option-copy strong {
+        overflow: hidden;
+        color: var(--text);
+        font-size: 10px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .connection-option-copy small {
+        overflow: hidden;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 8px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .connection-option-check {
+        color: var(--accent);
+        opacity: 0;
+      }
+
+      .connection-picker-option.is-selected .connection-option-check {
+        opacity: 1;
+      }
+
+      .workbench.is-collapsed .explorer {
+        grid-template-rows: 42px minmax(0, 1fr);
+      }
+
+      .workbench.is-collapsed .explorer-heading {
+        justify-content: center;
+        padding: 0;
+      }
+
+      .workbench.is-collapsed .explorer-heading h2,
+      .workbench.is-collapsed .explorer-heading > svg:first-child,
+      .workbench.is-collapsed .connection-tools,
+      .workbench.is-collapsed .tree-search,
+      .workbench.is-collapsed .resource-tree,
+      .workbench.is-collapsed .explorer-footer {
+        display: none;
+      }
+
+      .collapsed-tools {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding-top: 8px;
+      }
+
+      .workbench.is-collapsed .collapsed-tools {
+        display: flex;
+      }
+
+      .splitter {
+        position: relative;
+        z-index: 2;
+        background: var(--app);
+        cursor: col-resize;
+      }
+
+      .splitter::after {
+        position: absolute;
+        inset: 0 2px;
+        content: "";
+        background: var(--border);
+      }
+
+      .splitter:hover::after {
+        background: var(--accent);
+      }
+
+      .main-workspace {
+        display: grid;
+        grid-template-rows: 35px 42px minmax(160px, 38%) 5px minmax(0, 1fr);
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        background: var(--surface);
+      }
+
+      .query-tabs {
+        display: flex;
+        min-width: 0;
+        align-items: stretch;
+        background: #eef2f3;
+        border-bottom: 1px solid var(--border-strong);
+      }
+
+      .query-tab {
+        display: flex;
+        min-width: 122px;
+        max-width: 230px;
+        height: 35px;
+        align-items: center;
+        gap: 7px;
+        padding: 0 8px 0 11px;
+        color: var(--soft);
+        font-size: 10px;
+        background: #e5eaec;
+        border: 0;
+        border-right: 1px solid var(--border);
+      }
+
+      .query-tab:hover {
+        background: #f2f5f5;
+      }
+
+      .query-tab.is-active {
+        position: relative;
+        color: var(--text);
+        background: var(--surface);
+      }
+
+      .query-tab.is-active::before {
+        position: absolute;
+        top: 0;
+        right: 0;
+        left: 0;
+        height: 2px;
+        content: "";
+        background: var(--accent);
+      }
+
+      .query-tab svg:first-child {
+        color: var(--blue);
+      }
+
+      .query-tab span {
+        min-width: 0;
+        flex: 1;
+        overflow: hidden;
+        text-align: left;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .query-tab .tab-close {
+        display: grid;
+        width: 18px;
+        height: 18px;
+        flex: 0 0 auto;
+        place-items: center;
+        color: var(--muted);
+        border-radius: 3px;
+      }
+
+      .query-tab .tab-close:hover {
+        color: var(--danger);
+        background: var(--danger-soft);
+      }
+
+      .new-tab {
+        display: grid;
+        width: 35px;
+        height: 35px;
+        place-items: center;
+        color: var(--soft);
+        background: transparent;
+        border: 0;
+        border-right: 1px solid var(--border);
+      }
+
+      .new-tab:hover {
+        color: var(--accent);
+        background: var(--surface);
+      }
+
+      .editor-toolbar {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 3px;
+        padding: 5px 8px;
+        background: var(--surface-soft);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .run-button,
+      .text-button {
+        display: flex;
+        height: 31px;
+        align-items: center;
+        gap: 6px;
+        padding: 0 9px;
+        color: var(--soft);
+        font-size: 10px;
+        font-weight: 620;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 4px;
+      }
+
+      .run-button {
+        color: #ffffff;
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+
+      .run-button:hover {
+        background: var(--accent-dark);
+        border-color: var(--accent-dark);
+      }
+
+      .text-button:hover {
+        color: var(--text);
+        background: var(--surface-hover);
+        border-color: var(--border);
+      }
+
+      .text-button.is-danger:hover {
+        color: var(--danger);
+        background: var(--danger-soft);
+      }
+
+      .toolbar-divider {
+        width: 1px;
+        height: 22px;
+        margin: 0 4px;
+        background: var(--border);
+      }
+
+      .editor-context {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 5px;
+        margin-left: auto;
+      }
+
+      .context-select {
+        display: flex;
+        height: 29px;
+        align-items: center;
+        gap: 5px;
+        padding: 0 7px;
+        color: var(--soft);
+        font-size: 9px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+      }
+
+      .context-select select {
+        max-width: 116px;
+        color: var(--text);
+        font-size: 9px;
+        font-weight: 620;
+        background: transparent;
+        border: 0;
+        outline: 0;
+      }
+
+      .editor {
+        position: relative;
+        display: grid;
+        grid-template-rows: minmax(0, 1fr) 23px;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        background: var(--surface);
+      }
+
+      .code-area {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr);
+        min-width: 0;
+        min-height: 0;
+        overflow: auto;
+        font-family: var(--mono);
+        font-size: 12px;
+        line-height: 22px;
+        scrollbar-color: #b8c4c7 transparent;
+        scrollbar-width: thin;
+      }
+
+      .line-numbers {
+        min-height: 100%;
+        padding: 12px 10px 24px 0;
+        color: #96a2a6;
+        text-align: right;
+        background: #f5f7f8;
+        border-right: 1px solid #e2e8ea;
+        user-select: none;
+      }
+
+      .query-code {
+        min-width: 760px;
+        margin: 0;
+        padding: 12px 18px 24px;
+        color: #304147;
+        white-space: pre;
+        outline: 0;
+      }
+
+      .query-code .keyword {
+        color: #1b5da2;
+        font-weight: 650;
+      }
+
+      .query-code .function {
+        color: #8a4f0b;
+      }
+
+      .query-code .identifier {
+        color: #087c70;
+      }
+
+      .query-code .string {
+        color: #8f3d77;
+      }
+
+      .query-code .comment {
+        color: #8b979b;
+      }
+
+      .editor-meta {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 0 10px;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 8px;
+        background: var(--surface-soft);
+        border-top: 1px solid var(--border);
+      }
+
+      .editor-meta span:first-child {
+        color: var(--blue);
+      }
+
+      .horizontal-splitter {
+        position: relative;
+        z-index: 2;
+        background: var(--app);
+        cursor: row-resize;
+      }
+
+      .horizontal-splitter::after {
+        position: absolute;
+        inset: 2px 0;
+        content: "";
+        background: var(--border);
+      }
+
+      .horizontal-splitter:hover::after {
+        background: var(--accent);
+      }
+
+      .results {
+        display: grid;
+        grid-template-rows: 37px 30px minmax(0, 1fr) 24px;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        background: var(--surface);
+      }
+
+      .result-tabs {
+        display: flex;
+        min-width: 0;
+        align-items: end;
+        padding: 0 8px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .result-tab {
+        position: relative;
+        display: flex;
+        height: 36px;
+        align-items: center;
+        gap: 6px;
+        padding: 0 11px;
+        color: var(--muted);
+        font-size: 10px;
+        background: transparent;
+        border: 0;
+      }
+
+      .result-tab:hover {
+        color: var(--text);
+      }
+
+      .result-tab.is-active {
+        color: var(--text);
+      }
+
+      .result-tab.is-active::after {
+        position: absolute;
+        right: 8px;
+        bottom: -1px;
+        left: 8px;
+        height: 2px;
+        content: "";
+        background: var(--accent);
+      }
+
+      .result-tab small {
+        min-width: 20px;
+        padding: 1px 4px;
+        color: var(--soft);
+        font-family: var(--mono);
+        font-size: 8px;
+        background: var(--chrome);
+        border-radius: 3px;
+      }
+
+      .result-actions {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        margin-left: auto;
+      }
+
+      .result-actions span {
+        margin-right: 7px;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 8px;
+      }
+
+      .result-filter {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 8px;
+        background: var(--surface-soft);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .result-filter svg {
+        color: var(--muted);
+      }
+
+      .result-filter input {
+        width: 220px;
+        height: 23px;
+        padding: 0 7px;
+        color: var(--text);
+        font-size: 9px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 3px;
+      }
+
+      .result-filter span {
+        margin-left: auto;
+        color: var(--muted);
+        font-size: 9px;
+      }
+
+      .table-wrap {
+        min-width: 0;
+        min-height: 0;
+        overflow: auto;
+        scrollbar-color: #b8c4c7 transparent;
+        scrollbar-width: thin;
+      }
+
+      .data-table {
+        width: 100%;
+        min-width: 980px;
+        border-spacing: 0;
+        border-collapse: separate;
+        color: var(--soft);
+        font-family: var(--mono);
+        font-size: 9px;
+      }
+
+      .data-table th,
+      .data-table td {
+        height: 25px;
+        padding: 0 9px;
+        text-align: left;
+        white-space: nowrap;
+        border-right: 1px solid #e4e9ea;
+        border-bottom: 1px solid #e8edef;
+      }
+
+      .data-table th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        height: 28px;
+        color: var(--text);
+        font-family: "Segoe UI Variable", "Microsoft YaHei UI", sans-serif;
+        font-size: 9px;
+        font-weight: 650;
+        background: #f1f4f5;
+        border-bottom-color: var(--border-strong);
+      }
+
+      .data-table th small {
+        display: block;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 7px;
+        font-weight: 400;
+      }
+
+      .data-table tbody tr:hover td {
+        background: #f1f7f6;
+      }
+
+      .data-table tbody tr.is-hidden {
+        display: none;
+      }
+
+      .data-table td:first-child,
+      .data-table th:first-child {
+        width: 40px;
+        color: var(--muted);
+        text-align: right;
+        background: #f7f9f9;
+      }
+
+      .data-table .numeric {
+        color: #794610;
+        text-align: right;
+      }
+
+      .result-status {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 9px;
+        color: var(--muted);
+        font-size: 8px;
+        background: var(--surface-soft);
+        border-top: 1px solid var(--border);
+      }
+
+      .result-status strong {
+        color: var(--success);
+        font-weight: 650;
+      }
+
+      .chart-view,
+      .message-view {
+        display: none;
+        min-width: 0;
+        min-height: 0;
+        grid-row: 2 / 5;
+      }
+
+      .chart-view.is-active,
+      .message-view.is-active {
+        display: grid;
+      }
+
+      .chart-view {
+        grid-template-rows: minmax(0, 1fr) 30px;
+        padding: 16px 22px 0;
+        background: var(--surface);
+      }
+
+      .chart {
+        position: relative;
+        min-height: 0;
+        border-bottom: 1px solid var(--border-strong);
+        border-left: 1px solid var(--border-strong);
+      }
+
+      .chart::before {
+        position: absolute;
+        inset: 0;
+        content: "";
+        background-image: linear-gradient(#edf1f2 1px, transparent 1px), linear-gradient(90deg, #edf1f2 1px, transparent 1px);
+        background-size: 100% 25%, 12.5% 100%;
+      }
+
+      .chart svg {
+        position: absolute;
+        inset: 10px 12px;
+        width: calc(100% - 24px);
+        height: calc(100% - 20px);
+        overflow: visible;
+      }
+
+      .chart-legend {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        color: var(--soft);
+        font-size: 9px;
+      }
+
+      .chart-legend i {
+        display: inline-block;
+        width: 18px;
+        height: 2px;
+        margin-right: 5px;
+        vertical-align: middle;
+        background: var(--accent);
+      }
+
+      .chart-legend span:nth-child(2) i {
+        background: var(--blue);
+      }
+
+      .message-view {
+        place-items: center;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .message-view div {
+        display: flex;
+        max-width: 360px;
+        flex-direction: column;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .message-view svg {
+        color: var(--success);
+      }
+
+      .message-view strong {
+        color: var(--text);
+        font-size: 12px;
+      }
+
+      .message-view small {
+        font-size: 9px;
+        line-height: 16px;
+      }
+
+      .statusbar {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 10px;
+        color: #a8b6ba;
+        font-size: 8px;
+        background: var(--titlebar);
+        border-top: 1px solid var(--titlebar-border);
+      }
+
+      .statusbar > div {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .statusbar span {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        white-space: nowrap;
+      }
+
+      .statusbar .ready {
+        color: #70d8ad;
+      }
+
+      .modal-backdrop {
+        position: fixed;
+        z-index: 50;
+        inset: 0;
+        display: none;
+        place-items: center;
+        padding: 24px;
+        background: rgba(20, 31, 36, 0.28);
+      }
+
+      .modal-backdrop.is-open {
+        display: grid;
+      }
+
+      .dialog {
+        width: min(520px, calc(100vw - 48px));
+        overflow: hidden;
+        background: var(--surface);
+        border: 1px solid var(--border-strong);
+        border-radius: 6px;
+        box-shadow: var(--shadow);
+      }
+
+      .dialog-header {
+        display: flex;
+        height: 48px;
+        align-items: center;
+        gap: 9px;
+        padding: 0 10px 0 16px;
+        background: var(--surface-soft);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .dialog-header > svg {
+        color: var(--accent);
+      }
+
+      .dialog-header div {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .dialog-header h2 {
+        margin: 0;
+        font-size: 13px;
+      }
+
+      .dialog-header p {
+        margin: 2px 0 0;
+        color: var(--muted);
+        font-size: 9px;
+      }
+
+      .dialog-body {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 13px 14px;
+        padding: 18px;
+      }
+
+      .field {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      .field.is-wide {
+        grid-column: 1 / -1;
+      }
+
+      .field span {
+        color: var(--soft);
+        font-size: 9px;
+        font-weight: 620;
+      }
+
+      .field input,
+      .field select {
+        width: 100%;
+        height: 32px;
+        padding: 0 9px;
+        color: var(--text);
+        font-size: 10px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+      }
+
+      .field small {
+        color: var(--muted);
+        font-size: 8px;
+      }
+
+      .dialog-test {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 9px 11px;
+        color: var(--success);
+        font-size: 9px;
+        background: var(--success-soft);
+        border: 1px solid #bedfcd;
+        border-radius: 4px;
+        grid-column: 1 / -1;
+      }
+
+      .dialog-test.is-offline {
+        color: var(--soft);
+        background: var(--chrome);
+        border-color: var(--border);
+      }
+
+      .dialog-footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 7px;
+        padding: 10px 14px;
+        background: var(--surface-soft);
+        border-top: 1px solid var(--border);
+      }
+
+      .secondary-button,
+      .primary-button {
+        display: inline-flex;
+        height: 31px;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 0 12px;
+        font-size: 10px;
+        font-weight: 620;
+        border-radius: 4px;
+      }
+
+      .secondary-button {
+        color: var(--soft);
+        background: var(--surface);
+        border: 1px solid var(--border);
+      }
+
+      .secondary-button:hover {
+        color: var(--text);
+        border-color: var(--border-strong);
+      }
+
+      .primary-button {
+        color: #ffffff;
+        background: var(--accent);
+        border: 1px solid var(--accent);
+      }
+
+      .primary-button:hover {
+        background: var(--accent-dark);
+      }
+
+      .toast {
+        position: fixed;
+        z-index: 60;
+        right: 14px;
+        bottom: 38px;
+        display: flex;
+        min-width: 250px;
+        max-width: 360px;
+        min-height: 42px;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 12px;
+        color: #ffffff;
+        font-size: 10px;
+        background: #223237;
+        border: 1px solid #43555b;
+        border-radius: 5px;
+        box-shadow: 0 10px 28px rgba(18, 31, 36, 0.24);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(8px);
+        transition: opacity 150ms ease, transform 150ms ease;
+      }
+
+      .toast.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .toast svg {
+        color: #70d8ad;
+      }
+
+      @media (max-width: 1220px) {
+        .workbench {
+          --explorer-width: 250px;
+        }
+
+        .text-button span,
+        .run-button kbd {
+          display: none;
+        }
+
+        .context-select:first-child {
+          display: none;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header class="titlebar">
+        <div class="brand"><i data-lucide="database" style="width:17px;height:17px"></i><span>InfluxDesk</span></div>
+        <div class="window-title"><span data-connection-name>Production East</span> / <span data-active-database>telemetry</span> / CPU 使用率</div>
+        <div class="window-actions" aria-hidden="true"><span>−</span><span>□</span><span>×</span></div>
+      </header>
+
+      <div class="workbench" id="workbench">
+        <aside class="explorer" aria-label="资源浏览器">
+          <header class="explorer-heading">
+            <i data-lucide="folder-tree" style="width:16px;height:16px"></i>
+            <h2>资源浏览器</h2>
+            <button class="icon-button" data-action="collapse-explorer" title="收起资源浏览器" aria-label="收起资源浏览器"><i data-lucide="panel-left-close" style="width:15px;height:15px"></i></button>
+          </header>
+          <div class="connection-tools">
+            <button class="active-connection" data-action="switch-connection" data-connection-trigger data-state="online" aria-haspopup="listbox" aria-expanded="false" aria-controls="connection-picker" title="选择连接">
+              <i data-lucide="server" style="width:14px;height:14px"></i><span data-connection-name>Production East</span><i data-lucide="chevron-down" style="width:12px;height:12px"></i>
+            </button>
+            <button class="icon-button" data-action="new-connection" title="新建连接" aria-label="新建连接"><i data-lucide="plus" style="width:15px;height:15px"></i></button>
+            <button class="icon-button" data-action="edit-connection" title="编辑连接" aria-label="编辑连接"><i data-lucide="pencil" style="width:14px;height:14px"></i></button>
+            <button class="icon-button" data-action="refresh" title="刷新资源" aria-label="刷新资源"><i data-lucide="refresh-cw" style="width:14px;height:14px"></i></button>
+          </div>
+          <label class="tree-search">
+            <i data-lucide="search" style="width:13px;height:13px"></i>
+            <input id="tree-filter" aria-label="筛选数据库对象" placeholder="筛选数据库对象" />
+            <kbd>Ctrl K</kbd>
+          </label>
+          <div class="resource-tree" id="resource-tree" role="tree">
+            <button class="tree-row" data-kind="connection" data-node="prod" style="--depth:0" role="treeitem" aria-expanded="true">
+              <i class="caret" data-lucide="chevron-down" style="width:12px;height:12px"></i><i class="tree-kind" data-lucide="server" style="width:14px;height:14px"></i><strong>Production East</strong><span class="tree-status">在线</span>
+            </button>
+            <button class="tree-row" data-kind="database" data-node="telemetry" data-parent="prod" style="--depth:1" role="treeitem" aria-expanded="true">
+              <i class="caret" data-lucide="chevron-down" style="width:12px;height:12px"></i><i class="tree-kind" data-lucide="database" style="width:14px;height:14px"></i><strong>telemetry</strong>
+            </button>
+            <button class="tree-row" data-kind="section" data-node="rp" data-parent="telemetry" style="--depth:2" role="treeitem" aria-expanded="false">
+              <i class="caret" data-lucide="chevron-right" style="width:12px;height:12px"></i><i class="tree-kind" data-lucide="key-round" style="width:13px;height:13px"></i><span>Retention Policies</span><span class="tree-count">3</span>
+            </button>
+            <button class="tree-row" data-kind="section" data-node="measurements" data-parent="telemetry" style="--depth:2" role="treeitem" aria-expanded="true">
+              <i class="caret" data-lucide="chevron-down" style="width:12px;height:12px"></i><i class="tree-kind" data-lucide="gauge" style="width:13px;height:13px"></i><span>Measurements</span><span class="tree-count">6</span>
+            </button>
+            <button class="tree-row is-selected" data-kind="measurement" data-node="cpu" data-parent="measurements" style="--depth:3" role="treeitem" aria-expanded="true">
+              <i class="caret" data-lucide="chevron-down" style="width:12px;height:12px"></i><i class="tree-kind" data-lucide="activity" style="width:13px;height:13px"></i><span>cpu</span><span class="tree-count">5</span>
+            </button>
+            <button class="tree-row" data-kind="field" data-parent="cpu" style="--depth:4" role="treeitem"><i class="tree-kind" data-lucide="hash" style="width:12px;height:12px"></i><span>usage_user</span><span class="tree-count">float</span></button>
+            <button class="tree-row" data-kind="field" data-parent="cpu" style="--depth:4" role="treeitem"><i class="tree-kind" data-lucide="hash" style="width:12px;height:12px"></i><span>usage_system</span><span class="tree-count">float</span></button>
+            <button class="tree-row" data-kind="field" data-parent="cpu" style="--depth:4" role="treeitem"><i class="tree-kind" data-lucide="hash" style="width:12px;height:12px"></i><span>requests</span><span class="tree-count">int64</span></button>
+            <button class="tree-row" data-kind="tag" data-parent="cpu" style="--depth:4" role="treeitem"><i class="tree-kind" data-lucide="tag" style="width:12px;height:12px"></i><span>host</span><span class="tree-count">tag</span></button>
+            <button class="tree-row" data-kind="tag" data-parent="cpu" style="--depth:4" role="treeitem"><i class="tree-kind" data-lucide="tag" style="width:12px;height:12px"></i><span>region</span><span class="tree-count">tag</span></button>
+            <button class="tree-row" data-kind="measurement" data-node="http_requests" data-parent="measurements" style="--depth:3" role="treeitem" aria-expanded="false"><i class="caret" data-lucide="chevron-right" style="width:12px;height:12px"></i><i class="tree-kind" data-lucide="activity" style="width:13px;height:13px"></i><span>http_requests</span><span class="tree-count">7</span></button>
+            <button class="tree-row" data-kind="measurement" data-node="disk" data-parent="measurements" style="--depth:3" role="treeitem" aria-expanded="false"><i class="caret" data-lucide="chevron-right" style="width:12px;height:12px"></i><i class="tree-kind" data-lucide="activity" style="width:13px;height:13px"></i><span>disk</span><span class="tree-count">4</span></button>
+            <button class="tree-row" data-kind="measurement" data-node="memory" data-parent="measurements" style="--depth:3" role="treeitem" aria-expanded="false"><i class="caret" data-lucide="chevron-right" style="width:12px;height:12px"></i><i class="tree-kind" data-lucide="activity" style="width:13px;height:13px"></i><span>memory</span><span class="tree-count">6</span></button>
+            <button class="tree-row" data-kind="measurement" data-node="network" data-parent="measurements" style="--depth:3" role="treeitem" aria-expanded="false"><i class="caret" data-lucide="chevron-right" style="width:12px;height:12px"></i><i class="tree-kind" data-lucide="activity" style="width:13px;height:13px"></i><span>network</span><span class="tree-count">8</span></button>
+            <button class="tree-row" data-kind="measurement" data-node="processes" data-parent="measurements" style="--depth:3" role="treeitem" aria-expanded="false"><i class="caret" data-lucide="chevron-right" style="width:12px;height:12px"></i><i class="tree-kind" data-lucide="activity" style="width:13px;height:13px"></i><span>processes</span><span class="tree-count">3</span></button>
+            <button class="tree-row" data-kind="database" data-node="operations" data-parent="prod" style="--depth:1" role="treeitem" aria-expanded="false"><i class="caret" data-lucide="chevron-right" style="width:12px;height:12px"></i><i class="tree-kind" data-lucide="database" style="width:14px;height:14px"></i><strong>operations</strong></button>
+            <button class="tree-row" data-kind="database" data-node="_internal" data-parent="prod" style="--depth:1" role="treeitem" aria-expanded="false"><i class="caret" data-lucide="chevron-right" style="width:12px;height:12px"></i><i class="tree-kind" data-lucide="database" style="width:14px;height:14px"></i><strong>_internal</strong></button>
+            <button class="tree-row" data-kind="connection" data-node="lab" style="--depth:0" role="treeitem" aria-expanded="false"><i class="caret" data-lucide="chevron-right" style="width:12px;height:12px"></i><i class="tree-kind" data-lucide="server" style="width:14px;height:14px"></i><strong>Local Lab</strong><span class="tree-count">离线</span></button>
+          </div>
+          <footer class="explorer-footer"><span>2 个连接</span><span>3 个数据库</span></footer>
+          <div class="collapsed-tools">
+            <button class="icon-button" data-action="new-connection" title="新建连接" aria-label="新建连接"><i data-lucide="plus" style="width:15px;height:15px"></i></button>
+            <button class="icon-button" data-action="edit-connection" title="编辑连接" aria-label="编辑连接"><i data-lucide="pencil" style="width:14px;height:14px"></i></button>
+            <button class="icon-button" data-action="refresh" title="刷新资源" aria-label="刷新资源"><i data-lucide="refresh-cw" style="width:14px;height:14px"></i></button>
+          </div>
+        </aside>
+
+        <div class="splitter" id="vertical-splitter" title="拖动调整资源浏览器宽度"></div>
+
+        <main class="main-workspace" id="main-workspace">
+          <div class="query-tabs" id="query-tabs">
+            <button class="query-tab is-active" data-tab="1"><i data-lucide="braces" style="width:13px;height:13px"></i><span>CPU 使用率</span><i class="tab-close" data-lucide="x" style="width:12px;height:12px"></i></button>
+            <button class="query-tab" data-tab="2"><i data-lucide="braces" style="width:13px;height:13px"></i><span>请求量趋势</span><i class="tab-close" data-lucide="x" style="width:12px;height:12px"></i></button>
+            <button class="new-tab" data-action="new-query" title="新建查询" aria-label="新建查询"><i data-lucide="plus" style="width:15px;height:15px"></i></button>
+          </div>
+
+          <div class="editor-toolbar">
+            <button class="run-button" data-action="run" title="执行查询 (Ctrl+Enter)"><i data-lucide="play" style="width:13px;height:13px"></i><span>执行</span><kbd>Ctrl ↵</kbd></button>
+            <button class="text-button" data-action="format" title="格式化 InfluxQL"><i data-lucide="align-left" style="width:14px;height:14px"></i><span>格式化</span></button>
+            <button class="text-button" data-action="save" title="保存查询"><i data-lucide="save" style="width:14px;height:14px"></i><span>保存</span></button>
+            <div class="toolbar-divider"></div>
+            <button class="text-button" data-action="preview" title="预览写入或删除影响"><i data-lucide="shield-alert" style="width:14px;height:14px"></i><span>变更预览</span></button>
+            <button class="icon-button" data-action="history" title="查询历史" aria-label="查询历史"><i data-lucide="history" style="width:14px;height:14px"></i></button>
+            <div class="editor-context">
+              <label class="context-select"><span>数据库</span><select aria-label="数据库"><option>telemetry</option><option>operations</option></select></label>
+              <label class="context-select"><span>RP</span><select aria-label="Retention Policy"><option>autogen</option><option>thirty_days</option></select></label>
+              <button class="icon-button" data-action="more" title="更多编辑器操作" aria-label="更多编辑器操作"><i data-lucide="ellipsis" style="width:15px;height:15px"></i></button>
+            </div>
+          </div>
+
+          <section class="editor" aria-label="InfluxQL 编辑器">
+            <div class="code-area">
+              <div class="line-numbers">1<br />2<br />3<br />4<br />5<br />6<br />7</div>
+              <pre class="query-code" contenteditable="true" spellcheck="false" aria-label="查询文本"><span class="comment">-- 最近 6 小时各主机 CPU 使用率</span>
+<span class="keyword">SELECT</span> <span class="function">mean</span>(<span class="identifier">"usage_user"</span>) <span class="keyword">AS</span> <span class="identifier">"usage_user"</span>, <span class="function">sum</span>(<span class="identifier">"requests"</span>) <span class="keyword">AS</span> <span class="identifier">"requests"</span>
+<span class="keyword">FROM</span> <span class="identifier">"telemetry"</span>.<span class="identifier">"autogen"</span>.<span class="identifier">"cpu"</span>
+<span class="keyword">WHERE</span> time &gt;= now() - 6h
+  <span class="keyword">AND</span> <span class="identifier">"region"</span> = <span class="string">'sh-east'</span>
+<span class="keyword">GROUP BY</span> time(5m), <span class="identifier">"host"</span> fill(null)
+<span class="keyword">ORDER BY</span> time <span class="keyword">DESC</span></pre>
+            </div>
+            <footer class="editor-meta"><span>InfluxQL</span><span>Ln 2, Col 1</span><span>UTF-8</span><span>7 行</span></footer>
+          </section>
+
+          <div class="horizontal-splitter" id="horizontal-splitter" title="拖动调整编辑器高度"></div>
+
+          <section class="results" id="results" aria-label="查询结果">
+            <header class="result-tabs">
+              <button class="result-tab is-active" data-result-view="table"><i data-lucide="table-2" style="width:14px;height:14px"></i>数据<small>461</small></button>
+              <button class="result-tab" data-result-view="chart"><i data-lucide="chart-no-axes-combined" style="width:14px;height:14px"></i>图表</button>
+              <button class="result-tab" data-result-view="message"><i data-lucide="info" style="width:14px;height:14px"></i>消息<small>1</small></button>
+              <div class="result-actions"><span>返回 461 行 · 171 ms</span><button class="icon-button" data-action="copy" title="复制所选结果" aria-label="复制所选结果"><i data-lucide="copy" style="width:14px;height:14px"></i></button><button class="icon-button" data-action="export" title="导出结果" aria-label="导出结果"><i data-lucide="download" style="width:14px;height:14px"></i></button><button class="icon-button" data-action="maximize-results" title="最大化结果" aria-label="最大化结果"><i data-lucide="maximize-2" style="width:14px;height:14px"></i></button></div>
+            </header>
+            <div class="result-filter table-only"><i data-lucide="search" style="width:12px;height:12px"></i><input id="result-filter" aria-label="筛选当前结果" placeholder="筛选当前结果" /><span id="visible-rows">显示 12 / 461 行</span></div>
+            <div class="table-wrap table-only">
+              <table class="data-table">
+                <thead><tr><th>#</th><th>time<small>timestamp_ns</small></th><th>host<small>tag</small></th><th>region<small>tag</small></th><th>usage_user<small>float64</small></th><th>requests<small>int64</small></th><th>received_time_ms<small>int64</small></th></tr></thead>
+                <tbody id="result-body"></tbody>
+              </table>
+            </div>
+            <footer class="result-status table-only"><strong>查询成功</strong><span>响应 171 ms</span><span>传输 419 KiB</span><span>精确数值模式</span></footer>
+            <div class="chart-view" id="chart-view">
+              <div class="chart">
+                <svg viewBox="0 0 900 220" preserveAspectRatio="none" aria-label="CPU 使用率趋势图">
+                  <polyline fill="none" stroke="#087c70" stroke-width="3" points="0,168 75,156 150,164 225,118 300,129 375,82 450,96 525,61 600,88 675,42 750,64 825,27 900,48" />
+                  <polyline fill="none" stroke="#2464ad" stroke-width="2" points="0,188 75,179 150,184 225,160 300,169 375,132 450,143 525,119 600,137 675,102 750,118 825,84 900,96" />
+                </svg>
+              </div>
+              <div class="chart-legend"><span><i></i>api-01 usage_user</span><span><i></i>api-02 usage_user</span></div>
+            </div>
+            <div class="message-view" id="message-view"><div><i data-lucide="circle-check" style="width:24px;height:24px"></i><strong>查询已完成</strong><small>InfluxDB 返回 1 个 series，共 461 行数据。未发现 partial 或 chunk 协议错误。</small></div></div>
+          </section>
+        </main>
+      </div>
+
+      <footer class="statusbar">
+        <div><span class="ready"><i data-lucide="circle-check" style="width:11px;height:11px"></i>就绪</span><span data-connection-name>Production East</span><span>Mock bridge</span></div>
+        <div><span><i data-lucide="cloud" style="width:11px;height:11px"></i>4 slots available</span><span><i data-lucide="hard-drive" style="width:11px;height:11px"></i>缓存 0.8 MiB</span><span><i data-lucide="lock" style="width:11px;height:11px"></i>写入受保护</span></div>
+      </footer>
+    </div>
+
+    <div class="connection-picker-popover" id="connection-picker" role="listbox" aria-label="选择连接">
+      <div class="connection-picker-heading"><span>选择连接</span><span>2 个已保存连接</span></div>
+      <button class="connection-picker-option is-selected" data-action="select-connection" data-connection-id="prod" role="option" aria-selected="true">
+        <span class="connection-option-dot"></span><span class="connection-option-copy"><strong>Production East</strong><small>influx.example.net:8086 · telemetry</small></span><i class="connection-option-check" data-lucide="check" style="width:14px;height:14px"></i>
+      </button>
+      <button class="connection-picker-option" data-action="select-connection" data-connection-id="lab" role="option" aria-selected="false">
+        <span class="connection-option-dot is-offline"></span><span class="connection-option-copy"><strong>Local Lab</strong><small>127.0.0.1:8086 · operations · 离线</small></span><i class="connection-option-check" data-lucide="check" style="width:14px;height:14px"></i>
+      </button>
+    </div>
+
+    <div class="modal-backdrop" id="connection-modal" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+      <form class="dialog" id="connection-form">
+        <header class="dialog-header"><i data-lucide="server-cog" style="width:18px;height:18px"></i><div><h2 id="dialog-title">编辑连接</h2><p>InfluxDB 1.x 数据源</p></div><button class="icon-button" type="button" data-action="close-modal" title="关闭" aria-label="关闭"><i data-lucide="x" style="width:15px;height:15px"></i></button></header>
+        <div class="dialog-body">
+          <label class="field is-wide"><span>连接名称</span><input id="connection-name" value="Production East" required /></label>
+          <label class="field is-wide"><span>服务地址</span><input id="connection-url" value="https://influx.example.net:8086" required /><small>支持 HTTP 或 HTTPS</small></label>
+          <label class="field"><span>用户名</span><input id="connection-user" value="operator" /></label>
+          <label class="field"><span>默认数据库</span><input id="connection-database" value="telemetry" /></label>
+          <label class="field"><span>Retention Policy</span><select><option>autogen</option><option>thirty_days</option></select></label>
+          <label class="field"><span>连接超时</span><select><option>10 秒</option><option>30 秒</option><option>60 秒</option></select></label>
+          <div class="dialog-test"><i data-lucide="circle-check" style="width:14px;height:14px"></i><span id="connection-test-status">连接可用 · InfluxDB v1.12.4 · 38 ms</span></div>
+        </div>
+        <footer class="dialog-footer"><button class="secondary-button" type="button" data-action="test-connection"><i data-lucide="cable" style="width:13px;height:13px"></i>测试连接</button><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="submit"><i data-lucide="save" style="width:13px;height:13px"></i>保存</button></footer>
+      </form>
+    </div>
+
+    <div class="toast" id="toast" role="status"><i data-lucide="circle-check" style="width:16px;height:16px"></i><span></span></div>
+
+    <script>
+      (function () {
+        'use strict'
+
+        var workbench = document.getElementById('workbench')
+        var mainWorkspace = document.getElementById('main-workspace')
+        var modal = document.getElementById('connection-modal')
+        var dialogTitle = document.getElementById('dialog-title')
+        var connectionName = document.getElementById('connection-name')
+        var connectionUrl = document.getElementById('connection-url')
+        var connectionUser = document.getElementById('connection-user')
+        var connectionDatabase = document.getElementById('connection-database')
+        var connectionTestStatus = document.getElementById('connection-test-status')
+        var connectionPicker = document.getElementById('connection-picker')
+        var toast = document.getElementById('toast')
+        var toastTimer
+        var activeConnectionId = 'prod'
+        var connections = {
+          prod: {
+            name: 'Production East',
+            url: 'https://influx.example.net:8086',
+            user: 'operator',
+            database: 'telemetry',
+            version: 'v1.12.4',
+            state: 'online',
+          },
+          lab: {
+            name: 'Local Lab',
+            url: 'http://127.0.0.1:8086',
+            user: '',
+            database: 'operations',
+            version: 'v1.8.10',
+            state: 'offline',
+          },
+        }
+
+        function renderIcons() {
+          if (window.lucide) window.lucide.createIcons({ attrs: { 'stroke-width': 1.8 } })
+        }
+
+        window.addEventListener('load', renderIcons)
+
+        function notify(message) {
+          toast.querySelector('span').textContent = message
+          toast.classList.add('is-visible')
+          window.clearTimeout(toastTimer)
+          toastTimer = window.setTimeout(function () { toast.classList.remove('is-visible') }, 2200)
+        }
+
+        function openConnectionModal(mode) {
+          var creating = mode === 'new'
+          var activeConnection = connections[activeConnectionId]
+          closeConnectionPicker()
+          dialogTitle.textContent = creating ? '新建连接' : '编辑连接'
+          connectionName.value = creating ? '' : activeConnection.name
+          connectionUrl.value = creating ? '' : activeConnection.url
+          connectionUser.value = creating ? '' : activeConnection.user
+          connectionDatabase.value = creating ? '' : activeConnection.database
+          connectionTestStatus.textContent = creating
+            ? '填写连接信息后进行测试'
+            : activeConnection.state === 'online'
+              ? '连接可用 · InfluxDB ' + activeConnection.version + ' · 38 ms'
+              : '当前连接离线 · 上次识别为 InfluxDB ' + activeConnection.version
+          connectionTestStatus.parentElement.classList.toggle('is-offline', creating || activeConnection.state === 'offline')
+          modal.classList.add('is-open')
+          window.setTimeout(function () { connectionName.focus() }, 40)
+        }
+
+        function closeConnectionModal() {
+          modal.classList.remove('is-open')
+        }
+
+        function closeConnectionPicker() {
+          connectionPicker.classList.remove('is-open')
+          document.querySelectorAll('[data-connection-trigger]').forEach(function (trigger) {
+            trigger.setAttribute('aria-expanded', 'false')
+          })
+        }
+
+        function toggleConnectionPicker(trigger) {
+          if (connectionPicker.classList.contains('is-open')) {
+            closeConnectionPicker()
+            return
+          }
+
+          connectionPicker.classList.add('is-open')
+          trigger.setAttribute('aria-expanded', 'true')
+          var triggerRect = trigger.getBoundingClientRect()
+          var left = Math.min(Math.max(8, triggerRect.left), window.innerWidth - connectionPicker.offsetWidth - 8)
+          var top = triggerRect.bottom + 4
+          if (top + connectionPicker.offsetHeight > window.innerHeight - 8) {
+            top = triggerRect.top - connectionPicker.offsetHeight - 4
+          }
+          connectionPicker.style.left = left + 'px'
+          connectionPicker.style.top = Math.max(8, top) + 'px'
+          var selected = connectionPicker.querySelector('[aria-selected="true"]')
+          if (selected) selected.focus()
+        }
+
+        function updateTreeConnection(id) {
+          var prodRow = document.querySelector('[data-node="prod"]')
+          var labRow = document.querySelector('[data-node="lab"]')
+          var productionActive = id === 'prod'
+
+          prodRow.setAttribute('aria-expanded', String(productionActive))
+          labRow.setAttribute('aria-expanded', String(!productionActive))
+          setTreeDescendantsVisible('prod', !productionActive)
+
+          ;[prodRow, labRow].forEach(function (row) {
+            row.classList.toggle('is-selected', row.dataset.node === id)
+            var caret = row.querySelector('.caret')
+            var expanded = row.getAttribute('aria-expanded') === 'true'
+            if (caret) caret.outerHTML = '<i class="caret" data-lucide="' + (expanded ? 'chevron-down' : 'chevron-right') + '" style="width:12px;height:12px"></i>'
+          })
+        }
+
+        function selectConnection(id) {
+          var connection = connections[id]
+          if (!connection) return
+          activeConnectionId = id
+
+          document.querySelectorAll('[data-connection-name]').forEach(function (node) {
+            node.textContent = connection.name
+          })
+          document.querySelectorAll('[data-active-database]').forEach(function (node) {
+            node.textContent = connection.database
+          })
+          document.querySelectorAll('.active-connection').forEach(function (node) {
+            node.dataset.state = connection.state
+          })
+          document.querySelectorAll('.connection-picker-option').forEach(function (option) {
+            var selected = option.dataset.connectionId === id
+            option.classList.toggle('is-selected', selected)
+            option.setAttribute('aria-selected', String(selected))
+          })
+
+          var databaseSelect = document.querySelector('select[aria-label="数据库"]')
+          if (databaseSelect) databaseSelect.value = connection.database
+          updateTreeConnection(id)
+          closeConnectionPicker()
+          renderIcons()
+          notify('已选择 ' + connection.name + (connection.state === 'offline' ? ' · 当前离线' : ' · 连接正常'))
+        }
+
+        function addQueryTab() {
+          var tabs = document.getElementById('query-tabs')
+          var add = tabs.querySelector('.new-tab')
+          var count = tabs.querySelectorAll('.query-tab').length + 1
+          tabs.querySelectorAll('.query-tab').forEach(function (tab) { tab.classList.remove('is-active') })
+          var tab = document.createElement('button')
+          tab.className = 'query-tab is-active'
+          tab.dataset.tab = String(count)
+          tab.innerHTML = '<i data-lucide="braces" style="width:13px;height:13px"></i><span>查询 ' + count + '</span><i class="tab-close" data-lucide="x" style="width:12px;height:12px"></i>'
+          tabs.insertBefore(tab, add)
+          renderIcons()
+          notify('已新建查询标签')
+        }
+
+        function switchResultView(view) {
+          document.querySelectorAll('.result-tab').forEach(function (tab) {
+            tab.classList.toggle('is-active', tab.dataset.resultView === view)
+          })
+          document.querySelectorAll('.table-only').forEach(function (node) {
+            node.style.display = view === 'table' ? '' : 'none'
+          })
+          document.getElementById('chart-view').classList.toggle('is-active', view === 'chart')
+          document.getElementById('message-view').classList.toggle('is-active', view === 'message')
+        }
+
+        document.addEventListener('click', function (event) {
+          var pickerTrigger = event.target.closest('[data-connection-trigger]')
+          var insidePicker = event.target.closest('#connection-picker')
+          if (connectionPicker.classList.contains('is-open') && !pickerTrigger && !insidePicker) {
+            closeConnectionPicker()
+          }
+
+          var closeIcon = event.target.closest('.tab-close')
+          if (closeIcon) {
+            event.stopPropagation()
+            var closingTab = closeIcon.closest('.query-tab')
+            var wasActive = closingTab.classList.contains('is-active')
+            closingTab.remove()
+            if (wasActive) {
+              var first = document.querySelector('.query-tab')
+              if (first) first.classList.add('is-active')
+            }
+            notify('查询标签已关闭')
+            return
+          }
+
+          var tab = event.target.closest('.query-tab')
+          if (tab) {
+            document.querySelectorAll('.query-tab').forEach(function (item) { item.classList.remove('is-active') })
+            tab.classList.add('is-active')
+            return
+          }
+
+          var resultTab = event.target.closest('[data-result-view]')
+          if (resultTab) {
+            switchResultView(resultTab.dataset.resultView)
+            return
+          }
+
+          var treeRow = event.target.closest('.tree-row')
+          if (treeRow) {
+            document.querySelectorAll('.tree-row').forEach(function (row) { row.classList.remove('is-selected') })
+            treeRow.classList.add('is-selected')
+            if (treeRow.hasAttribute('aria-expanded')) {
+              var expanded = treeRow.getAttribute('aria-expanded') === 'true'
+              treeRow.setAttribute('aria-expanded', String(!expanded))
+              var caret = treeRow.querySelector('.caret')
+              if (caret) {
+                caret.setAttribute('data-lucide', expanded ? 'chevron-right' : 'chevron-down')
+                renderIcons()
+              }
+              var nodeName = treeRow.dataset.node
+              setTreeDescendantsVisible(nodeName, expanded)
+            }
+            return
+          }
+
+          var actionElement = event.target.closest('[data-action]')
+          if (!actionElement) return
+          var action = actionElement.dataset.action
+
+          if (action === 'collapse-explorer') {
+            var collapsed = workbench.classList.toggle('is-collapsed')
+            actionElement.title = collapsed ? '展开资源浏览器' : '收起资源浏览器'
+            var icon = actionElement.querySelector('svg')
+            if (icon) {
+              icon.outerHTML = '<i data-lucide="' + (collapsed ? 'panel-left-open' : 'panel-left-close') + '" style="width:15px;height:15px"></i>'
+              renderIcons()
+            }
+          } else if (action === 'new-connection') {
+            openConnectionModal('new')
+          } else if (action === 'edit-connection') {
+            openConnectionModal('edit')
+          } else if (action === 'switch-connection') {
+            toggleConnectionPicker(actionElement)
+          } else if (action === 'select-connection') {
+            selectConnection(actionElement.dataset.connectionId)
+          } else if (action === 'close-modal') {
+            closeConnectionModal()
+          } else if (action === 'new-query') {
+            addQueryTab()
+          } else if (action === 'run') {
+            actionElement.innerHTML = '<i data-lucide="loader-circle" class="spin" style="width:13px;height:13px"></i><span>执行中</span>'
+            renderIcons()
+            window.setTimeout(function () {
+              actionElement.innerHTML = '<i data-lucide="play" style="width:13px;height:13px"></i><span>执行</span><kbd>Ctrl ↵</kbd>'
+              renderIcons()
+              switchResultView('table')
+              notify('查询完成，返回 461 行 · 171 ms')
+            }, 650)
+          } else if (action === 'refresh') {
+            var refreshIcon = actionElement.querySelector('svg')
+            if (refreshIcon) refreshIcon.style.animation = 'spin 600ms linear'
+            window.setTimeout(function () {
+              if (refreshIcon) refreshIcon.style.animation = ''
+              notify('资源目录已刷新')
+            }, 650)
+          } else if (action === 'format') {
+            notify('InfluxQL 已格式化')
+          } else if (action === 'save') {
+            notify('查询已保存')
+          } else if (action === 'copy') {
+            notify('已复制 12 行结果')
+          } else if (action === 'export') {
+            notify('已创建 CSV 导出任务')
+          } else if (action === 'test-connection') {
+            notify('连接测试成功 · 38 ms')
+          } else if (action === 'lock') {
+            notify('写入保护保持锁定')
+          } else if (action === 'preview') {
+            notify('当前查询为只读，无需变更预览')
+          } else {
+            notify('该功能已在原型中保留入口')
+          }
+        })
+
+        modal.addEventListener('click', function (event) {
+          if (event.target === modal) closeConnectionModal()
+        })
+
+        document.getElementById('connection-form').addEventListener('submit', function (event) {
+          event.preventDefault()
+          closeConnectionModal()
+          notify('连接配置已保存')
+        })
+
+        document.getElementById('tree-filter').addEventListener('input', function (event) {
+          var needle = event.target.value.trim().toLowerCase()
+          document.querySelectorAll('.tree-row').forEach(function (row) {
+            row.hidden = needle !== '' && !row.textContent.toLowerCase().includes(needle)
+          })
+        })
+
+        document.getElementById('result-filter').addEventListener('input', function (event) {
+          var needle = event.target.value.trim().toLowerCase()
+          var visible = 0
+          document.querySelectorAll('#result-body tr').forEach(function (row) {
+            var hidden = needle !== '' && !row.textContent.toLowerCase().includes(needle)
+            row.classList.toggle('is-hidden', hidden)
+            if (!hidden) visible += 1
+          })
+          document.getElementById('visible-rows').textContent = '显示 ' + visible + ' / 461 行'
+        })
+
+        function setTreeDescendantsVisible(nodeName, shouldHide) {
+          document.querySelectorAll('[data-parent="' + nodeName + '"]').forEach(function (child) {
+            child.hidden = shouldHide
+            if (!child.dataset.node) return
+            var childCollapsed = child.getAttribute('aria-expanded') === 'false'
+            setTreeDescendantsVisible(child.dataset.node, shouldHide || childCollapsed)
+          })
+        }
+
+        document.addEventListener('keydown', function (event) {
+          if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+            event.preventDefault()
+            document.getElementById('tree-filter').focus()
+          }
+          if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+            event.preventDefault()
+            document.querySelector('[data-action="run"]').click()
+          }
+          if (event.key === 'Escape') {
+            closeConnectionPicker()
+            closeConnectionModal()
+          }
+        })
+
+        window.addEventListener('resize', closeConnectionPicker)
+
+        var hosts = ['api-01', 'api-02', 'api-03', 'api-04']
+        var regions = ['sh-east', 'sh-east', 'sh-west']
+        var rows = []
+        for (var index = 0; index < 12; index += 1) {
+          var minute = String(19 - Math.floor(index / 6)).padStart(2, '0')
+          var second = String(29 - (index % 6) * 5).padStart(2, '0')
+          rows.push('<tr><td>' + (461 - index) + '</td><td>2026-07-28 09:' + minute + ':' + second + '.123456789</td><td>' + hosts[index % hosts.length] + '</td><td>' + regions[index % regions.length] + '</td><td class="numeric">' + (64.4532 - index * 0.0713).toFixed(4) + '</td><td class="numeric">' + (9007199254740992 + index) + '</td><td class="numeric">1785230' + (367589 - index * 503) + '</td></tr>')
+        }
+        document.getElementById('result-body').innerHTML = rows.join('')
+
+        function setupVerticalResize() {
+          var splitter = document.getElementById('vertical-splitter')
+          splitter.addEventListener('pointerdown', function (event) {
+            if (workbench.classList.contains('is-collapsed')) return
+            splitter.setPointerCapture(event.pointerId)
+            function move(moveEvent) {
+              var width = Math.max(220, Math.min(420, moveEvent.clientX))
+              workbench.style.setProperty('--explorer-width', width + 'px')
+            }
+            function stop() {
+              splitter.removeEventListener('pointermove', move)
+              splitter.removeEventListener('pointerup', stop)
+            }
+            splitter.addEventListener('pointermove', move)
+            splitter.addEventListener('pointerup', stop)
+          })
+        }
+
+        function setupHorizontalResize() {
+          var splitter = document.getElementById('horizontal-splitter')
+          splitter.addEventListener('pointerdown', function (event) {
+            splitter.setPointerCapture(event.pointerId)
+            var workspaceTop = mainWorkspace.getBoundingClientRect().top
+            function move(moveEvent) {
+              var available = mainWorkspace.clientHeight - 119
+              var editorHeight = Math.max(145, Math.min(available - 150, moveEvent.clientY - workspaceTop - 77))
+              mainWorkspace.style.gridTemplateRows = '35px 42px ' + editorHeight + 'px 5px minmax(0, 1fr)'
+            }
+            function stop() {
+              splitter.removeEventListener('pointermove', move)
+              splitter.removeEventListener('pointerup', stop)
+            }
+            splitter.addEventListener('pointermove', move)
+            splitter.addEventListener('pointerup', stop)
+          })
+        }
+
+        setupVerticalResize()
+        setupHorizontalResize()
+      })()
+    </script>
+    <style>
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .spin { animation: spin 700ms linear infinite; }
+    </style>
+  </body>
+</html>

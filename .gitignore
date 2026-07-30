@@ -1,0 +1,7 @@
+build/bin
+node_modules
+frontend/dist
+.wails/
+build/windows/wix/bin/
+build/windows/wix/obj/
+release/*.part
