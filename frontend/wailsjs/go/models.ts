@@ -269,6 +269,28 @@ export namespace importworker {
 
 export namespace main {
 	
+	export class ExportQueryResultInput {
+	    sessionId: string;
+	    statementId: number;
+	    seriesId: string;
+	    allRows: boolean;
+	    rowIndexes?: string[];
+	    suggestedName?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new ExportQueryResultInput(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	        this.statementId = source["statementId"];
+	        this.seriesId = source["seriesId"];
+	        this.allRows = source["allRows"];
+	        this.rowIndexes = source["rowIndexes"];
+	        this.suggestedName = source["suggestedName"];
+	    }
+	}
 	export class ImportSourceInspection {
 	    sourcePath: string;
 	    displayName: string;
@@ -361,6 +383,20 @@ export namespace main {
 	        this.protectionMode = source["protectionMode"];
 	        this.createdAt = source["createdAt"];
 	        this.updatedAt = source["updatedAt"];
+	    }
+	}
+	export class QueryResultExportView {
+	    path: string;
+	    rowCount: string;
+
+	    static createFrom(source: any = {}) {
+	        return new QueryResultExportView(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.rowCount = source["rowCount"];
 	    }
 	}
 	export class QueryScalarView {
@@ -1413,4 +1449,3 @@ export namespace transfer {
 	}
 
 }
-

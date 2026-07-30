@@ -1,99 +1,123 @@
-# InfluxDesk
+<p align="center">
+  <img src="frontend/src/assets/images/logo-universal.png" width="96" alt="InfluxDesk logo">
+</p>
 
-InfluxDesk 是面向 Windows 11 x64 和 InfluxDB 1.x 的 InfluxQL 桌面客户端。仓库当前是 PLAN 39 的**可编译实施基线和可测试纵向闭环**，不是已经签名、通过生产环境认证的发布版本。
+<h1 align="center">InfluxDesk</h1>
 
-产品范围包括连接与查询工作台、精确数值结果、受保护 mutation，以及逻辑导入/导出。它不提供服务端备份、快照恢复，也不承诺 exactly-once 迁移。
+<p align="center">
+  面向 Windows 和 InfluxDB 1.x 的桌面查询与数据管理工具
+</p>
 
-## 目标范围
+<p align="center">
+  <a href="https://github.com/betterball-coding/influxdbDesk/releases/tag/v0.1.0">下载 v0.1.0</a>
+  ·
+  <a href="https://github.com/betterball-coding/influxdbDesk/issues">问题反馈</a>
+  ·
+  <a href="docs/IMPLEMENTATION_STATUS.md">实现状态</a>
+</p>
 
-- 正式目标：Windows 11 Enterprise x64 23H2/24H2，且仅覆盖微软支持期。
-- InfluxDB 目标：OSS 1.8.10、1.12.4；1.7.10 仅作为夜间兼容目标。
-- 查询语言：仅 InfluxQL；Flux、SQL、InfluxDB 2.x/3.x 不在本版本范围内。
+<p align="center">
+  <a href="https://github.com/betterball-coding/influxdbDesk/actions/workflows/ci.yml"><img src="https://github.com/betterball-coding/influxdbDesk/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
+  <img src="https://img.shields.io/badge/platform-Windows%2011-0078D4" alt="Windows 11">
+  <img src="https://img.shields.io/badge/InfluxDB-1.x-22ADF6" alt="InfluxDB 1.x">
+  <img src="https://img.shields.io/badge/InfluxQL-supported-00897B" alt="InfluxQL supported">
+</p>
 
-## 当前可执行闭环
+InfluxDesk 是一个专注于 InfluxDB 1.x 的中文桌面工作台。它把连接管理、Schema 浏览、InfluxQL 编辑、查询结果分析、受保护的数据变更，以及逻辑导入导出放在同一个 Windows 应用中，适合日常排查、数据核对和受控运维。
 
-- Query：持久创建/命令幂等、60 秒真实 RoundTrip deadline、严格 chunk 协议、`UseNumber` 精确类型、加密 spill、HMAC cursor、2 小时结果过期、24 小时 tombstone 和 90 天清理边界。
-- Task：双 revision、SQLite 快照/事件同事务提交，以及不依赖 SQLite `INTEGER`/Go `int64` 的任意精度十进制 `eventSeq`。
-- Protection 与 Mutation：三态保护、generation 级命令账本、writer-preferred `dispatchGate`、支配性 Lock、preview reserve、单次 start barrier、Operation 幂等/取消/未知结果。
-- Import：Preflight 和规范 staging、START/RESUME Grant、连续单 batch runner、checkpoint/Permit CAS、partial/unknown incident、人工 Resolve/ABORT、Cancel/Cleanup 和重启恢复。
-- Export：单 measurement 严格模式、确定性半开时间分片、真实独立 TransferLane、目标卷 extent reservation、`.lp.gz` 耐久提交、manifest、重启复验与 Restart/Cancel/Cleanup。
-- Frontend：Wails task event 订阅与断号补拉、Import/Export 任务面板，以及基于 `decimalText`/BigInt 原点的图表精度保护和显式近似模式。
+![InfluxDesk 查询工作台](design-prototypes/screenshots/concept-a-query.png)
 
-以上能力由仓库内单元测试和集成测试覆盖；尚未完成的生产发布门禁和产品范围见 [PLAN 39 实施状态](docs/IMPLEMENTATION_STATUS.md)。
+## 功能
 
-## 仓库结构
+- **连接管理**：集中维护多个 InfluxDB 1.x 数据源，支持连接测试、状态检查和默认数据库配置。
+- **InfluxQL 工作台**：多标签编辑、语法高亮、快捷执行与取消、Schema 资源树和可视化查询辅助。
+- **结果分析**：分页表格、精确数值展示、趋势图，以及所选行或完整结果的 CSV 导出。
+- **安全变更**：连接默认处于写入保护状态；写操作必须先预览影响，再通过一次性授权执行。
+- **逻辑导入导出**：支持 Line Protocol、CSV 和 JSONL 等导入预检，提供可恢复任务、checkpoint、分片导出与人工事故决策。
+- **本地持久化**：保存连接配置、查询任务和传输状态，应用重启后可以恢复未完成任务。
+- **Windows 凭据保护**：敏感连接信息通过 Windows Credential Manager、DPAPI 等系统能力保护，不写入普通日志或任务正文。
 
-- `app.go`：Wails facade 和启动恢复顺序。
-- `frontend/`：工作台、精确结果表格/图表、任务事件同步和传输面板。
-- `internal/transport`：InfluxDB 唯一 HTTP 出口和强类型 `/ping`、`/query`、`/write` 请求。
-- `internal/influxql`：版本锁定的 fail-closed AST 分类。
-- `internal/query`：Query 任务、chunk 协议、精确类型、cursor、spill 和持久保留期。
-- `internal/tasks`：任务快照、revision、精确 `eventSeq`、幂等/命令账本和恢复。
-- `internal/protection`、`internal/operation`：保护命令、lease/gate、preview token 和 mutation 派发。
-- `internal/transfer`、`internal/importworker`：Import staging、配额、Grant/Permit、checkpoint/incident、runner 控制和耐久 gzip。
-- `internal/exportlane`、`internal/exportjob`、`internal/exportworker`、`internal/exportservice`：Export 调度、持久任务、严格导出 worker 和应用服务。
-- `internal/credential`、`internal/secure`、`internal/localapp`：Credential Manager、DPAPI/GCM 和受保护本地目录。
-- `build/windows/wix`：WiX 7 MSI 工程；Wails NSIS 不是正式发布产物。
+## 界面预览
 
-## 工具链说明
+### 连接管理
 
-PLAN 39 的默认环境记录为 Go 1.24.7，但 Wails 2.13.0 自身的 `go.mod` 要求 Go 1.25.0。为保证依赖图可构建和结果可复现，本仓库因此锁定：
+查看连接地址、数据库、认证方式、运行状态和当前安全能力。
 
-- Go language version：`1.25.0`
-- Go toolchain：`go1.25.12`
-- Wails：`2.13.0`
-- Node.js：`22.22.2`
+![InfluxDesk 连接管理](design-prototypes/screenshots/concept-a-connections.png)
 
-这是一项有意记录的实现偏差，不能把仓库降回 Go 1.24.7 而仍声称使用未修改的 Wails 2.13.0。
+### 数据传输
 
-## 开发与验证
+统一管理逻辑导入、逻辑导出、任务恢复和需要人工确认的异常批次。
 
-后端基础门禁：
+![InfluxDesk 数据传输](design-prototypes/screenshots/concept-a-transfers.png)
 
-```bash
-go test ./...
-go vet ./...
-go test -race \
-  ./internal/transport ./internal/query ./internal/store ./internal/tasks \
-  ./internal/protection ./internal/operation ./internal/transfer \
-  ./internal/importworker ./internal/exportlane ./internal/exportjob \
-  ./internal/exportworker ./internal/exportservice
-```
+## 下载
 
-前端门禁：
+当前版本为 [v0.1.0 预发布版](https://github.com/betterball-coding/influxdbDesk/releases/tag/v0.1.0)，面向 Windows 11 x64：
+
+| 文件 | 用途 |
+| --- | --- |
+| `InfluxDesk-0.1.0-windows-x64-portable.zip` | 解压后直接运行的便携版本 |
+| `InfluxDesk-0.1.0-windows-x64-unsigned.msi` | Windows x64 安装包 |
+| `SHA256SUMS.txt` | 发布文件完整性校验 |
+
+> v0.1.0 是功能预览版，EXE 和 MSI 尚未进行 Authenticode 商业代码签名。Windows SmartScreen 可能显示未知发布者提示，请只从本仓库 Releases 下载，并在运行前核对 SHA-256。
+
+### 系统要求
+
+- Windows 11 x64，建议 23H2 或 24H2。
+- Microsoft Edge WebView2 Evergreen Runtime。
+- InfluxDB OSS 1.8.10 或 1.12.4；1.7.10 作为兼容性目标。
+- 仅支持 InfluxQL 和 InfluxDB 1.x HTTP API，不支持 Flux、SQL、InfluxDB 2.x/3.x。
+
+## 快速开始
+
+1. 从 Releases 下载便携 ZIP 或 MSI，并核对 `SHA256SUMS.txt`。
+2. 解压运行 `InfluxDesk.exe`，或通过 MSI 完成安装。
+3. 打开“连接”，填写 InfluxDB 地址、端口、账号和默认数据库。
+4. 测试并打开连接，在 Schema 面板选择 measurement 后编写 InfluxQL。
+5. 保持“保护模式”即可安全执行只读查询和逻辑导出；写操作需要显式解锁并完成预览确认。
+
+## 安全边界
+
+- InfluxDesk 的导入导出属于**逻辑数据传输**，不是 InfluxDB 服务端备份、快照或灾难恢复工具。
+- 写操作默认锁定；永久只读连接不能通过界面升级为可写连接。
+- 查询结果中的大整数和高精度数值以文本语义保留，图表仅使用显式的非权威数值投影。
+- v0.1.0 尚未完成商业代码签名、完整 Windows VM 安装生命周期和真实生产环境认证，不应直接作为无人值守生产发布。
+
+更完整的实现范围、测试门禁和未完成事项见 [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)。
+
+## 本地开发
+
+工具链：Go 1.25.12、Node.js 22.22.2、Wails 2.13.0。
 
 ```bash
 cd frontend
 npm ci
 npm test
 npm run build
-npm run test:e2e
-npm audit --audit-level=moderate
-```
 
-Windows x64 可编译性基线：
-
-```bash
+cd ..
+go test ./...
+go vet ./...
 wails build -platform windows/amd64 -clean -m -nopackage -webview2 error -nocolour
 ```
 
-该命令产生的未签名交叉编译产物只适合开发/CI 验证，不等同于 WiX MSI、Authenticode 或 Windows VM 验收。
+浏览器开发模式使用确定性 mock 数据；原生 Wails 模式使用真实 Go 绑定，后端错误不会静默回退到 mock。
 
-浏览器工作台可用以下命令启动：
+## 项目结构
 
-```bash
-cd frontend
-npm run dev -- --host 127.0.0.1
-```
+- `frontend/`：React 查询工作台、连接管理、结果视图和传输任务界面。
+- `app.go`：Wails 前后端桥接和应用启动恢复。
+- `internal/query`、`internal/influxql`：查询执行、精确结果和 InfluxQL 安全分类。
+- `internal/operation`、`internal/protection`：变更预览、写入保护和一次性授权。
+- `internal/transfer`、`internal/importworker`、`internal/exportworker`：逻辑导入导出与恢复。
+- `build/windows/wix`：Windows x64 WiX MSI 工程。
 
-浏览器模式使用确定性 mock 数据；原生 Wails 模式使用生成绑定，后端错误不会静默回退到 mock。
+## 反馈与贡献
 
-## 安全与发布边界
+发现问题或有功能建议，请提交 [GitHub Issue](https://github.com/betterball-coding/influxdbDesk/issues)。提交代码前请先运行 Go 测试、前端测试和生产构建。
 
-- SQLite 使用 WAL 和 `synchronous=FULL`；抢占准入和状态边界使用 `BEGIN IMMEDIATE`。
-- 凭据、LP、查询结果、preview token 和 Import Grant 不写入任务账本、事件或审计正文。
-- 所有数值单元格通过 Wails 时保持 tagged `decimalText`；图表只生成非权威投影。
-- `%LOCALAPPDATA%\InfluxDesk` 的 Windows DACL/reparse fail-closed、Credential Manager 和 DPAPI 实现已入库，但仍需在认证 Windows VM 上执行门禁。
-- Ed25519 manifest 验签、artifact hash 检查、WiX 源码和发布检查已入库；下载/安装链、真实签名及升级/回滚/卸载尚未完成生产验收。
+## 许可证
 
-生产发布至少还需 Windows 11 23H2/24H2 VM、真实 WiX MSI 和签名、InfluxDB 1.8.10/1.12.4 契约测试、故障注入、安全扫描与完整安装生命周期验证。完整清单见 [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)。
+本仓库目前尚未声明开源许可证。在许可证文件补充之前，代码和发布产物保留所有权利。

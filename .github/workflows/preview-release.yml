@@ -1,0 +1,146 @@
+name: preview-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Three-part preview version
+        required: true
+        default: 0.1.0
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: preview-release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    runs-on: windows-2022
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.12'
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Validate version
+        shell: pwsh
+        run: |
+          if ($env:RELEASE_VERSION -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
+            throw 'Version must contain exactly three numeric components.'
+          }
+
+      - name: Test and build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - name: Test backend
+        run: |
+          go test ./...
+          go vet ./...
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
+
+      - name: Apply executable version
+        shell: pwsh
+        run: |
+          $config = Get-Content .\wails.json -Raw | ConvertFrom-Json
+          $config.info.productVersion = $env:RELEASE_VERSION
+          $config | ConvertTo-Json -Depth 10 | Set-Content .\wails.json -Encoding utf8NoBOM
+
+      - name: Build Windows x64 executable
+        run: wails build -platform windows/amd64 -clean -m -nopackage -webview2 error -nocolour -trimpath
+
+      - name: Verify executable version
+        shell: pwsh
+        run: |
+          $version = (Get-Item .\build\bin\InfluxDesk.exe).VersionInfo.ProductVersion
+          if ($version -ne $env:RELEASE_VERSION) {
+            throw "Executable version is $version, expected $env:RELEASE_VERSION."
+          }
+
+      - name: Build unsigned WiX 7 MSI
+        shell: pwsh
+        run: |
+          dotnet build .\build\windows\wix\InfluxDesk.wixproj `
+            -c Release `
+            -p:ProductVersion=$env:RELEASE_VERSION `
+            -p:SourceDir="$pwd\build\bin"
+
+      - name: Package preview artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force .\release | Out-Null
+          $portable = ".\release\InfluxDesk-$($env:RELEASE_VERSION)-windows-x64-portable.zip"
+          Compress-Archive -LiteralPath .\build\bin\InfluxDesk.exe -DestinationPath $portable
+
+          $sourceMsi = Get-ChildItem .\build\windows\wix\bin\Release -Filter *.msi -Recurse | Select-Object -First 1
+          if ($null -eq $sourceMsi) { throw 'WiX completed without producing an MSI.' }
+          $msi = ".\release\InfluxDesk-$($env:RELEASE_VERSION)-windows-x64-unsigned.msi"
+          Copy-Item -LiteralPath $sourceMsi.FullName -Destination $msi
+
+          $assets = @($portable, $msi)
+          $checksums = foreach ($asset in $assets) {
+            $file = Get-Item -LiteralPath $asset
+            $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($file.Name)"
+          }
+          $checksums | Set-Content .\release\SHA256SUMS.txt -Encoding ascii
+
+          @"
+          InfluxDesk v$($env:RELEASE_VERSION)
+
+          Windows 11 x64 preview release for InfluxDB 1.x and InfluxQL.
+
+          Assets:
+          - Portable ZIP containing InfluxDesk.exe
+          - Unsigned WiX MSI installer
+          - SHA-256 checksums
+
+          This preview is not Authenticode-signed. Windows may show an unknown publisher warning.
+          "@ | Set-Content .\release\RELEASE_NOTES.md -Encoding utf8NoBOM
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: InfluxDesk-${{ inputs.version }}-windows-x64-preview
+          if-no-files-found: error
+          path: |
+            release/*.zip
+            release/*.msi
+            release/SHA256SUMS.txt
+
+      - name: Create GitHub prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v$($env:RELEASE_VERSION)" `
+            --repo $env:GITHUB_REPOSITORY `
+            --target $env:GITHUB_SHA `
+            --title "InfluxDesk v$($env:RELEASE_VERSION)" `
+            --prerelease `
+            --notes-file .\release\RELEASE_NOTES.md `
+            ".\release\InfluxDesk-$($env:RELEASE_VERSION)-windows-x64-portable.zip" `
+            ".\release\InfluxDesk-$($env:RELEASE_VERSION)-windows-x64-unsigned.msi" `
+            .\release\SHA256SUMS.txt

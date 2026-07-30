@@ -42,6 +42,10 @@ export function ExecuteMutation(arg1, arg2) {
   return window['go']['main']['App']['ExecuteMutation'](arg1, arg2);
 }
 
+export function ExportQueryResultCSV(arg1) {
+  return window['go']['main']['App']['ExportQueryResultCSV'](arg1);
+}
+
 export function GetConnectionState(arg1) {
   return window['go']['main']['App']['GetConnectionState'](arg1);
 }

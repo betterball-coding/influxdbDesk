@@ -6,6 +6,13 @@
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
+  "info": {
+    "companyName": "InfluxDesk",
+    "productName": "InfluxDesk",
+    "productVersion": "0.1.0",
+    "copyright": "Copyright (c) 2026 betterball-coding",
+    "comments": "InfluxDB 1.x desktop workbench"
+  },
   "author": {
     "name": "InfluxDesk",
     "email": "engineering@influxdesk.local"

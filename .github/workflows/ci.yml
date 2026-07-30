@@ -21,12 +21,6 @@ jobs:
           node-version: '22.22.2'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Go test and vet
-        run: |
-          go test ./...
-          go vet ./...
-      - name: Race-sensitive packages
-        run: go test -race ./internal/transport ./internal/query ./internal/store ./internal/tasks ./internal/protection ./internal/operation ./internal/transfer
       - name: Frontend clean install, audit, test and build
         working-directory: frontend
         run: |
@@ -34,6 +28,12 @@ jobs:
           npm audit --audit-level=moderate
           npm test
           npm run build
+      - name: Go test and vet
+        run: |
+          go test ./...
+          go vet ./...
+      - name: Race-sensitive packages
+        run: go test -race ./internal/transport ./internal/query ./internal/store ./internal/tasks ./internal/protection ./internal/operation ./internal/transfer
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
       - name: Cross-build Windows x64 executable

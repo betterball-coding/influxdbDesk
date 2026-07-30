@@ -43,14 +43,14 @@ jobs:
             throw 'Version must contain exactly three numeric components.'
           }
 
-      - name: Test backend
-        run: go test ./...
-
       - name: Build frontend
         working-directory: frontend
         run: |
           npm ci
           npm run build
+
+      - name: Test backend
+        run: go test ./...
 
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0

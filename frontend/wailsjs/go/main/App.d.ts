@@ -4,8 +4,8 @@ import {exportjob} from '../models';
 import {transfer} from '../models';
 import {operation} from '../models';
 import {query} from '../models';
-import {connection} from '../models';
 import {main} from '../models';
+import {connection} from '../models';
 import {protection} from '../models';
 import {tasks} from '../models';
 import {importworker} from '../models';
@@ -29,6 +29,8 @@ export function CloseQuery(arg1:string,arg2:query.CommandEnvelope):Promise<query
 export function DeleteProfile(arg1:string,arg2:string):Promise<void>;
 
 export function ExecuteMutation(arg1:string,arg2:operation.ExecuteRequest):Promise<operation.Operation>;
+
+export function ExportQueryResultCSV(arg1:main.ExportQueryResultInput):Promise<main.QueryResultExportView>;
 
 export function GetConnectionState(arg1:string):Promise<connection.Snapshot>;
 
