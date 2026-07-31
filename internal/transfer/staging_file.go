@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -398,8 +399,13 @@ func sameStagingPath(left, right string) bool {
 }
 
 func sameStagingPathForOS(goos, left, right string) bool {
-	left = filepath.Clean(left)
-	right = filepath.Clean(right)
+	if goos == "darwin" {
+		left = path.Clean(left)
+		right = path.Clean(right)
+	} else {
+		left = filepath.Clean(left)
+		right = filepath.Clean(right)
+	}
 	if goos == "windows" {
 		return strings.EqualFold(left, right)
 	}

@@ -93,10 +93,17 @@ jobs:
           npm ci
           npm run build
 
-      - name: Test backend on Windows
+      - name: Test Windows release contracts
+        shell: pwsh
         run: |
-          go test ./...
-          go vet ./...
+          go test . -run '^TestWindowsRuntimeOptionsKeepWin10Contract$'
+          if ($LASTEXITCODE -ne 0) { throw 'Windows runtime option contract failed.' }
+          go test .\internal\credential .\internal\update
+          if ($LASTEXITCODE -ne 0) { throw 'Windows credential or update contract failed.' }
+          go test .\internal\releasecontract -run '^(TestWiXProductionContract|TestWindows10NSISContract|TestWindowsManifestDeclaresWindows10Compatibility|TestReleaseWorkflowRequiresRealSignedArtifacts|TestV1ReleaseWorkflowBuildsDistinctNativePackages|TestV1ReleaseNotesDiscloseSigningBoundaries)$'
+          if ($LASTEXITCODE -ne 0) { throw 'Windows packaging or release contract failed.' }
+          go vet . .\internal\credential .\internal\update .\internal\releasecontract
+          if ($LASTEXITCODE -ne 0) { throw 'Windows release package vet failed.' }
 
       - name: Build Windows 10 x64 NSIS installer
         shell: pwsh
@@ -116,7 +123,7 @@ jobs:
       - name: Build Windows 11 x64 executable and WiX MSI
         shell: pwsh
         run: |
-          wails build -platform windows/amd64 -clean -m -nopackage -webview2 error -o InfluxDesk.exe -nocolour -trimpath -s -skipbindings
+          wails build -platform windows/amd64 -clean -m -nsis -webview2 error -o InfluxDesk.exe -nocolour -trimpath -s -skipbindings
           $exeVersion = (Get-Item .\build\bin\InfluxDesk.exe).VersionInfo.ProductVersion
           if ($exeVersion -ne $env:RELEASE_VERSION) {
             throw "Executable version is $exeVersion, expected $($env:RELEASE_VERSION)."
