@@ -394,12 +394,27 @@ func (c *StagingFileCoordinator) removeRegularStagingFile(path string) error {
 }
 
 func sameStagingPath(left, right string) bool {
+	return sameStagingPathForOS(runtime.GOOS, left, right)
+}
+
+func sameStagingPathForOS(goos, left, right string) bool {
 	left = filepath.Clean(left)
 	right = filepath.Clean(right)
-	if runtime.GOOS == "windows" {
+	if goos == "windows" {
 		return strings.EqualFold(left, right)
 	}
+	// macOS exposes its trusted system temporary hierarchy through /var while
+	// the canonical vnode path is /private/var. Do not generalize this exception
+	// to arbitrary symlinked parents.
+	if goos == "darwin" {
+		return left == right || darwinPrivateVarAlias(left, right) || darwinPrivateVarAlias(right, left)
+	}
 	return left == right
+}
+
+func darwinPrivateVarAlias(privatePath, publicPath string) bool {
+	return (publicPath == "/var" || strings.HasPrefix(publicPath, "/var/")) &&
+		privatePath == "/private"+publicPath
 }
 
 func (q *QuotaManager) settleStagingReservations(

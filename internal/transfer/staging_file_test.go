@@ -59,6 +59,20 @@ func healthyStagingVolume(context.Context, string) (StagingVolumeStat, error) {
 	}, nil
 }
 
+func TestSameStagingPathAllowsOnlyDarwinPrivateVarAlias(t *testing.T) {
+	if !sameStagingPathForOS("darwin", "/private/var/folders/a/staging", "/var/folders/a/staging") {
+		t.Fatal("macOS system /var alias was rejected")
+	}
+	if !sameStagingPathForOS("darwin", "/var/folders/a/staging", "/private/var/folders/a/staging") {
+		t.Fatal("macOS system /var alias comparison must be symmetric")
+	}
+	for _, candidate := range []string{"/tmp/staging", "/Users/example/link/staging", "/private/tmp/staging"} {
+		if sameStagingPathForOS("darwin", "/private/var/folders/a/staging", candidate) {
+			t.Fatalf("untrusted macOS alias accepted: %s", candidate)
+		}
+	}
+}
+
 func TestStagingFileCoordinatorCommitsAndSettlesActualLength(t *testing.T) {
 	coordinator, database, job, directory := newStagingFileTest(t, "job-stage-success", healthyStagingVolume)
 	result, err := coordinator.Stage(context.Background(), StageImportFileRequest{
