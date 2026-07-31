@@ -96,6 +96,8 @@ lipo -archs build/bin/InfluxDesk.app/Contents/MacOS/InfluxDesk
 
 ## CI
 
-`.github/workflows/macos-release.yml` 在 `macos-14` runner 上构建并上传 ad-hoc 签名的 universal ZIP/DMG。`v1-release.yml` 会把同样的产物附加到公开 GitHub Release，并在发布说明中明确签名与公证边界。两个工作流都会启用临时 runner 登录 Keychain 的读写回归测试，但不持有 Developer ID 或公证凭据。
+`.github/workflows/ci.yml` 在每个 PR 和 `main` 提交上运行 macOS 原生测试、临时 Keychain 回归和 universal `.app` 构建。该产物只做 ad-hoc 签名并保留 7 天，仅用于诊断，不是发行包。
 
-正式签名发布需要受控 macOS runner、Developer ID 私钥、Apple 公证凭据和人工发布审批。浏览器 mock、Linux 静态检查或 `CGO_ENABLED=0` 交叉编译都不能证明 WKWebView、Cocoa 文件对话框、Keychain 授权、Gatekeeper、签名或公证真实通过。
+`.github/workflows/release.yml` 只接受已经进入 `main` 的 `vX.Y.Z` 标签。它从受保护的 `production` environment 读取 Developer ID 和 Apple 公证凭据，要求应用与 DMG 完成签名、公证、stapling 和 Gatekeeper 验证，然后与签名 Windows 包一起创建 Release 草稿。任何凭据或验证缺失都会终止，不会降级发布 ad-hoc 包。
+
+浏览器 mock、Linux 静态检查或 `CGO_ENABLED=0` 交叉编译都不能证明 WKWebView、Cocoa 文件对话框、Keychain 授权、Gatekeeper、签名或公证真实通过；公开草稿前仍需真实 Apple Silicon/Intel 设备验收。

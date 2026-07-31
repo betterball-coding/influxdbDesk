@@ -1,8 +1,17 @@
+//go:build windows
+
 package main
 
-import "github.com/wailsapp/wails/v2/pkg/options/windows"
+import (
+	"github.com/wailsapp/wails/v2/pkg/options"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
+)
 
 const minimumWebView2Runtime = "94.0.992.31"
+
+func configurePlatform(result *options.App, _ *App) {
+	result.Windows = windowsRuntimeOptions()
+}
 
 func windowsRuntimeOptions() *windows.Options {
 	return &windows.Options{

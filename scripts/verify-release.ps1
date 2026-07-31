@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$Version,
     [Parameter(Mandatory = $true)][string]$ExePath,
+    [Parameter(Mandatory = $true)][string]$Win10InstallerPath,
     [Parameter(Mandatory = $true)][string]$MsiPath,
     [Parameter(Mandatory = $true)][string]$ManifestPath,
     [Parameter(Mandatory = $true)][string]$ManifestSignaturePath
@@ -12,13 +13,13 @@ if ($Version -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
     throw "Version must contain exactly three numeric components."
 }
 
-foreach ($path in @($ExePath, $MsiPath, $ManifestPath, $ManifestSignaturePath)) {
+foreach ($path in @($ExePath, $Win10InstallerPath, $MsiPath, $ManifestPath, $ManifestSignaturePath)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Required release artifact is missing: $path"
     }
 }
 
-foreach ($path in @($ExePath, $MsiPath)) {
+foreach ($path in @($ExePath, $Win10InstallerPath, $MsiPath)) {
     $signature = Get-AuthenticodeSignature -LiteralPath $path
     if ($signature.Status -ne 'Valid') {
         throw "Authenticode signature is not valid for $path (status: $($signature.Status))."

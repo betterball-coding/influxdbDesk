@@ -24,6 +24,8 @@
 
 WiX 工程仍是发布骨架：它只检查机器级 WebView2 注册，不负责安装或更新运行时，因此不是本分支生成的 Win10 交付产物。
 
+Win10 NSIS 与 Win11 MSI 使用不同的安装器和升级机制。当前 Ed25519 自动更新 manifest 只绑定 Win11 MSI；Win10 版本不嵌入该通道公钥，升级时下载新的 NSIS 安装包并人工确认。实现独立的 NSIS 签名更新协议前，不得把 Win11 MSI manifest 复用于 Win10。
+
 ## 尚未验证
 
 当前 WSL 工具链只能验证交叉编译、PE/NSIS 结构和自动化测试。仍需在干净 Windows 10 22H2 x64 VM 上覆盖 WebView2 缺失、过旧、离线、企业策略阻断、安装/卸载、Credential Manager、DPAPI、DACL、Wails IPC 和多显示器 DPI；产物还需要 Authenticode 签名。

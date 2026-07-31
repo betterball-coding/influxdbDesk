@@ -32,7 +32,6 @@ func applicationOptions(app *App) *options.App {
 			Assets: assets,
 		},
 		BackgroundColour: &options.RGBA{R: 246, G: 247, B: 249, A: 1},
-		Windows:          windowsRuntimeOptions(),
 		OnStartup:        app.startup,
 		OnShutdown:       app.shutdown,
 		Bind: []interface{}{

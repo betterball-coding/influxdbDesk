@@ -2,50 +2,164 @@ name: ci
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  shared:
+    name: Shared contracts
     runs-on: ubuntu-24.04
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25.12'
           cache: true
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22.22.2'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - name: Frontend clean install, audit, test and build
+
+      - name: Frontend test and production build
         working-directory: frontend
         run: |
           npm ci
           npm audit --audit-level=moderate
           npm test
           npm run build
+
+      - name: Browser interaction tests
+        working-directory: frontend
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+
       - name: Go test and vet
         run: |
           go test ./...
           go vet ./...
-      - name: Compile Darwin internal contracts without CGO
-        run: |
-          GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go test -exec=/bin/true ./internal/...
-          GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go test -exec=/bin/true ./internal/...
+
       - name: Race-sensitive packages
         run: go test -race ./internal/transport ./internal/query ./internal/store ./internal/tasks ./internal/protection ./internal/operation ./internal/transfer
-      - name: Install Wails
+
+      - name: Compile platform contracts
+        run: |
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go test -exec=/bin/true ./...
+          GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go test -exec=/bin/true ./...
+          GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go test -exec=/bin/true ./...
+
+  windows:
+    name: Windows native
+    needs: shared
+    runs-on: windows-2022
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.12'
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Test Windows implementation
+        run: |
+          go test ./...
+          go vet ./...
+
+      - name: Install pinned Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
-      - name: Cross-build Windows x64 executable
-        run: wails build -platform windows/amd64 -clean -m -nopackage -webview2 error -nocolour
-      - name: Require executable artifact
-        run: test -s build/bin/InfluxDesk.exe
+
+      - name: Build unsigned Windows CI executable
+        run: wails build -platform windows/amd64 -clean -m -nopackage -webview2 error -nocolour -trimpath -s -skipbindings
+
+      - name: Verify Windows artifact
+        shell: pwsh
+        run: |
+          if (-not (Test-Path -LiteralPath .\build\bin\InfluxDesk.exe -PathType Leaf)) {
+            throw 'Windows build did not produce InfluxDesk.exe.'
+          }
+          $expected = (Get-Content .\wails.json -Raw | ConvertFrom-Json).info.productVersion
+          $actual = (Get-Item .\build\bin\InfluxDesk.exe).VersionInfo.ProductVersion
+          if ($actual -ne $expected) { throw "Executable version is $actual, expected $expected." }
+
       - uses: actions/upload-artifact@v4
         with:
           name: unsigned-ci-windows-x64
+          retention-days: 7
           if-no-files-found: error
           path: build/bin/InfluxDesk.exe
+
+  macos:
+    name: macOS native
+    needs: shared
+    runs-on: macos-14
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.12'
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Test macOS implementation and Keychain
+        env:
+          INFLUXDESK_MACOS_KEYCHAIN_TEST: '1'
+        run: |
+          go test ./...
+          go vet ./...
+
+      - name: Install pinned Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
+
+      - name: Build and verify ad-hoc macOS CI app
+        run: |
+          wails build -platform darwin/universal -clean -m -nocolour -trimpath -s -skipbindings
+          codesign --force --deep --sign - --timestamp=none build/bin/InfluxDesk.app
+          codesign --verify --deep --strict --verbose=2 build/bin/InfluxDesk.app
+          lipo -archs build/bin/InfluxDesk.app/Contents/MacOS/InfluxDesk | grep arm64
+          lipo -archs build/bin/InfluxDesk.app/Contents/MacOS/InfluxDesk | grep x86_64
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: adhoc-ci-macos-universal
+          retention-days: 7
+          if-no-files-found: error
+          path: build/bin/InfluxDesk.app

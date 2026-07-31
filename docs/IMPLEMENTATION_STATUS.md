@@ -61,15 +61,16 @@
 
 - SQLite WAL/FULL、Credential Manager 引用、DPAPI/AES-GCM、受保护 DACL root、reparse 拒绝和 secret-free 日志/事件边界已有代码及可在当前环境运行的测试。
 - Ed25519 manifest 原始字节验签、HTTPS/版本/平台约束、MSI length/SHA-256 校验、内置 channel key 和 Authenticode 发布检查已实现。
-- WiX 6.0.2 x64 per-machine 工程和 Windows release workflow 已入库；它们仍需真实 Windows、证书和安装生命周期执行，不能据此宣称 MSI 已发布。
-- macOS 已接入 `~/Library/Application Support/InfluxDesk` 私有目录、Keychain Services、标准 Cocoa 标题栏与菜单、Command 快捷键、固定 bundle identifier，以及 arm64/amd64 universal `.app`、ZIP、DMG 构建脚本和 CI 契约。
+- WiX 6.0.2 x64 per-machine 工程和 fail-closed 正式发布 workflow 已入库；流水线要求 Authenticode、RFC3161 时间戳和 Ed25519 更新清单全部通过，但仍需真实 Windows、证书和安装生命周期执行，不能据此宣称 MSI 已完成生产验收。
+- macOS 已接入 `~/Library/Application Support/InfluxDesk` 私有目录、Keychain Services、标准 Cocoa 标题栏与菜单、Command 快捷键、固定 bundle identifier，以及 arm64/amd64 universal `.app`、ZIP、DMG 构建脚本。正式流水线要求 Developer ID、公证和 stapling，普通 CI 只生成 ad-hoc 诊断产物。
+- 仓库采用单一 `main`、共享核心和 build-tag 平台适配器；Linux、Windows 原生、macOS 原生门禁从同一提交运行，正式标签同时生成三个平台交付目标。
 
 ## 已知限制与剩余工作
 
 以下项目仍是 PLAN 39 发布或完整产品范围的缺口：
 
 - **Windows 与 MSI 实测**：在干净 Windows 10 Enterprise 22H2 x64（build 19045）和 Windows 11 VM 上执行 WebView2 缺失/过旧、Credential Manager、DPAPI、DACL、Wails IPC/CDP、EXE/MSI 签名、WiX/NSIS 安装、升级、回滚和卸载门禁。
-- **macOS 原生与发布实测**：需在真实 Apple Silicon 与 Intel Mac 上执行 WKWebView、Cocoa 菜单/文件对话框、Keychain ACL、睡眠恢复、Gatekeeper、Developer ID、notarytool、stapling、DMG 安装和升级验收；当前工作流只上传 ad-hoc 签名包。
+- **macOS 原生与发布实测**：需在真实 Apple Silicon 与 Intel Mac 上执行 WKWebView、Cocoa 菜单/文件对话框、Keychain ACL、睡眠恢复、Gatekeeper、Developer ID、notarytool、stapling、DMG 安装和升级验收；仓库已有 fail-closed 签名/公证流水线，但尚未用生产证书完整执行。
 - **FINALIZING 恢复优化**：Export 在 rename 已成功但 COMPLETE 事务未提交的崩溃点，尚需启动时直接复验最终文件并补写 COMPLETE；当前恢复保守地暂停并要求 Restart/重新协调。
 - **真正逐 chunk 大导出**：当前一个 quantum 会先完整解码受限响应再写 artifact，尚不是将每个合法 chunk 持续写入 `.part` 的端到端大数据流；仍受单 quantum 响应上限约束。
 - **Export 范围**：尚未支持一个任务内的多 measurement 编排，也未支持 `NumericText`/类型冲突的用户显式宽松映射。当前只支持单 measurement 严格模式。

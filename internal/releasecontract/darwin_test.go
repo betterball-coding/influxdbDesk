@@ -47,6 +47,10 @@ func TestDarwinBuildAndCIContract(t *testing.T) {
 		"lipo -archs",
 		"codesign --verify",
 		"notarytool submit",
+		"INFLUXDESK_REQUIRE_PRODUCTION_SIGNING",
+		"MACOS_NOTARY_KEYCHAIN",
+		"stapler validate",
+		"spctl --assess",
 		"ditto -c -k",
 		"hdiutil create",
 		"SHA256SUMS.txt",
@@ -55,21 +59,31 @@ func TestDarwinBuildAndCIContract(t *testing.T) {
 			t.Errorf("macOS build script is missing %s", required)
 		}
 	}
-	workflow := read(t, filepath.Join(root, ".github", "workflows", "macos-release.yml"))
+	workflow := read(t, filepath.Join(root, ".github", "workflows", "ci.yml"))
 	for _, required := range []string{
 		"runs-on: macos-14",
-		"build-macos.sh universal",
+		"wails build -platform darwin/universal",
 		"INFLUXDESK_MACOS_KEYCHAIN_TEST",
-		"release/macos/*.dmg",
-		"release/macos/*.zip",
+		"build/bin/InfluxDesk.app",
 		"if-no-files-found: error",
 	} {
 		if !strings.Contains(workflow, required) {
 			t.Errorf("macOS workflow is missing %s", required)
 		}
 	}
-	if strings.Contains(strings.ToLower(workflow), "webview2") || strings.Contains(strings.ToLower(workflow), ".msi") {
-		t.Fatal("macOS workflow contains Windows packaging assumptions")
+	releaseWorkflow := read(t, filepath.Join(root, ".github", "workflows", "release.yml"))
+	for _, required := range []string{
+		"MACOS_CERTIFICATE_P12_BASE64",
+		"MACOS_SIGN_IDENTITY",
+		"APPLE_APP_PASSWORD",
+		"INFLUXDESK_REQUIRE_PRODUCTION_SIGNING",
+		"notarization=accepted and stapled",
+		"scripts/build-macos.sh universal",
+		"release/macos/*",
+	} {
+		if !strings.Contains(releaseWorkflow, required) {
+			t.Errorf("production macOS workflow is missing %s", required)
+		}
 	}
 }
 

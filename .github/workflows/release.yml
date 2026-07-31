@@ -1,0 +1,310 @@
+name: production-release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify immutable source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.12'
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Verify tag, version and main ancestry
+        id: version
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          [[ "$version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          source_version="$(node -p "require('./wails.json').info.productVersion")"
+          test "$source_version" = "$version"
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+
+      - name: Verify shared release contracts
+        working-directory: frontend
+        run: |
+          npm ci
+          npm audit --audit-level=moderate
+          npm test
+          npm run build
+
+      - name: Verify backend and release contracts
+        run: |
+          go test ./...
+          go vet ./...
+
+  windows:
+    name: Signed Windows packages
+    needs: verify
+    runs-on: windows-2022
+    timeout-minutes: 50
+    environment: production
+    env:
+      RELEASE_VERSION: ${{ needs.verify.outputs.version }}
+      SIGN_COMMAND: ${{ secrets.SIGN_COMMAND }}
+      UPDATE_PRIVATE_KEY_BASE64: ${{ secrets.UPDATE_PRIVATE_KEY_BASE64 }}
+      UPDATE_PUBLIC_KEY_BASE64: ${{ vars.UPDATE_PUBLIC_KEY_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.12'
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Require production credentials
+        shell: pwsh
+        run: |
+          foreach ($name in @('SIGN_COMMAND', 'UPDATE_PRIVATE_KEY_BASE64', 'UPDATE_PUBLIC_KEY_BASE64')) {
+            if ([string]::IsNullOrWhiteSpace((Get-Item "env:$name").Value)) {
+              throw "$name is required for a production release."
+            }
+          }
+
+      - name: Build frontend and test Windows implementation
+        shell: pwsh
+        run: |
+          Push-Location .\frontend
+          npm ci
+          npm run build
+          Pop-Location
+          go test ./...
+          go vet ./...
+
+      - name: Install pinned Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
+
+      - name: Build signed Windows 10 x64 installer
+        shell: pwsh
+        run: |
+          wails build -platform windows/amd64 -clean -m -nsis -webview2 embed -o InfluxDesk.exe -nocolour -trimpath -s -skipbindings
+          .\scripts\sign-windows-artifact.ps1 -Path .\build\bin\InfluxDesk.exe
+
+          $makensis = Get-Command makensis -ErrorAction Stop
+          $binary = (Resolve-Path .\build\bin\InfluxDesk.exe).Path
+          $signScript = (Resolve-Path .\scripts\sign-windows-artifact.ps1).Path
+          & $makensis.Source "/DARG_WAILS_AMD64_BINARY=$binary" "/DINFLUXDESK_SIGN_SCRIPT=$signScript" .\build\windows\installer\project.nsi
+          if ($LASTEXITCODE -ne 0) { throw 'NSIS packaging failed.' }
+
+          $installer = ".\build\bin\InfluxDesk-$($env:RELEASE_VERSION)-win10-x64-installer.exe"
+          New-Item -ItemType Directory -Force .\release\windows | Out-Null
+          Copy-Item -LiteralPath $installer -Destination .\release\windows\
+
+      - name: Build signed Windows 11 x64 MSI
+        id: windows11
+        shell: pwsh
+        run: |
+          $ldflags = "-X github.com/influxdesk/influxdesk/internal/update.EmbeddedChannelPublicKeyBase64=$env:UPDATE_PUBLIC_KEY_BASE64"
+          wails build -platform windows/amd64 -clean -m -nopackage -webview2 error -o InfluxDesk.exe -nocolour -trimpath -s -skipbindings -ldflags $ldflags
+          .\scripts\sign-windows-artifact.ps1 -Path .\build\bin\InfluxDesk.exe
+          dotnet build .\build\windows\wix\InfluxDesk.wixproj `
+            -c Release `
+            -p:ProductVersion=$env:RELEASE_VERSION `
+            -p:SourceDir="$pwd\build\bin"
+          $msi = Get-ChildItem .\build\windows\wix\bin -Filter *.msi -Recurse | Select-Object -First 1
+          if ($null -eq $msi) { throw 'WiX completed without producing an MSI.' }
+          .\scripts\sign-windows-artifact.ps1 -Path $msi.FullName
+          $destination = ".\release\windows\InfluxDesk-$($env:RELEASE_VERSION)-win11-x64-installer.msi"
+          Copy-Item -LiteralPath $msi.FullName -Destination $destination
+          "path=$destination" >> $env:GITHUB_OUTPUT
+
+      - name: Create and verify signed update manifest
+        shell: pwsh
+        run: |
+          $asset = "InfluxDesk-$($env:RELEASE_VERSION)-win11-x64-installer.msi"
+          $url = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$env:GITHUB_REF_NAME/$asset"
+          go run .\cmd\releasetool create -version $env:RELEASE_VERSION -msi '${{ steps.windows11.outputs.path }}' -url $url -out .\release\windows
+          go run .\cmd\releasetool verify -current 0.0.0 -manifest .\release\windows\manifest.json -signature .\release\windows\manifest.sig -msi '${{ steps.windows11.outputs.path }}' -public-key $env:UPDATE_PUBLIC_KEY_BASE64
+
+      - name: Verify signed Windows release
+        shell: pwsh
+        run: |
+          .\scripts\verify-release.ps1 `
+            -Version $env:RELEASE_VERSION `
+            -ExePath .\build\bin\InfluxDesk.exe `
+            -Win10InstallerPath ".\release\windows\InfluxDesk-$($env:RELEASE_VERSION)-win10-x64-installer.exe" `
+            -MsiPath '${{ steps.windows11.outputs.path }}' `
+            -ManifestPath .\release\windows\manifest.json `
+            -ManifestSignaturePath .\release\windows\manifest.sig
+          Get-ChildItem .\release\windows\InfluxDesk-* | ForEach-Object {
+            $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          } | Set-Content .\release\windows\SHA256SUMS_WINDOWS.txt -Encoding ascii
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: InfluxDesk-${{ needs.verify.outputs.version }}-windows-signed
+          retention-days: 14
+          if-no-files-found: error
+          path: release/windows/*
+
+  macos:
+    name: Signed and notarized macOS package
+    needs: verify
+    runs-on: macos-14
+    timeout-minutes: 55
+    environment: production
+    env:
+      MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.12'
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Require production credentials
+        shell: bash
+        run: |
+          for name in MACOS_CERTIFICATE_P12_BASE64 MACOS_CERTIFICATE_PASSWORD MACOS_SIGN_IDENTITY APPLE_ID APPLE_TEAM_ID APPLE_APP_PASSWORD; do
+            test -n "${!name:-}" || { echo "$name is required for a production release." >&2; exit 2; }
+          done
+
+      - name: Import Developer ID certificate and configure notary profile
+        id: keychain
+        shell: bash
+        run: |
+          keychain_path="$RUNNER_TEMP/influxdesk-signing.keychain-db"
+          certificate_path="$RUNNER_TEMP/influxdesk-signing.p12"
+          keychain_password="$(openssl rand -hex 24)"
+          python3 -c 'import base64, os, pathlib; pathlib.Path(os.environ["RUNNER_TEMP"], "influxdesk-signing.p12").write_bytes(base64.b64decode(os.environ["MACOS_CERTIFICATE_P12_BASE64"]))'
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$certificate_path" -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain_path"
+          security list-keychains -d user -s "$keychain_path"
+          xcrun notarytool store-credentials influxdesk-ci --keychain "$keychain_path" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD"
+          printf 'path=%s\n' "$keychain_path" >> "$GITHUB_OUTPUT"
+
+      - name: Build, sign, notarize and verify universal package
+        env:
+          INFLUXDESK_MACOS_KEYCHAIN_TEST: '1'
+          INFLUXDESK_REQUIRE_PRODUCTION_SIGNING: '1'
+          MACOS_NOTARY_PROFILE: influxdesk-ci
+          MACOS_NOTARY_KEYCHAIN: ${{ steps.keychain.outputs.path }}
+        run: scripts/build-macos.sh universal
+
+      - name: Verify production macOS metadata
+        run: |
+          grep '^architectures=.*arm64' release/macos/BUILD_INFO.txt
+          grep '^architectures=.*x86_64' release/macos/BUILD_INFO.txt
+          grep '^signing=Developer ID:' release/macos/BUILD_INFO.txt
+          grep '^notarization=accepted and stapled$' release/macos/BUILD_INFO.txt
+          xcrun stapler validate build/bin/InfluxDesk.app
+          spctl --assess --type execute --verbose=4 build/bin/InfluxDesk.app
+          cd release/macos
+          shasum -a 256 -c SHA256SUMS.txt
+
+      - name: Remove temporary signing keychain
+        if: always()
+        run: security delete-keychain '${{ steps.keychain.outputs.path }}' || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: InfluxDesk-${{ needs.verify.outputs.version }}-macos-notarized
+          retention-days: 14
+          if-no-files-found: error
+          path: release/macos/*
+
+  draft:
+    name: Create verified release draft
+    needs:
+      - verify
+      - windows
+      - macos
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: production
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ needs.verify.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: InfluxDesk-${{ needs.verify.outputs.version }}-windows-signed
+          path: staging/windows
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: InfluxDesk-${{ needs.verify.outputs.version }}-macos-notarized
+          path: staging/macos
+
+      - name: Assemble and verify release assets
+        run: |
+          mkdir -p release/final
+          cp staging/windows/InfluxDesk-* release/final/
+          cp staging/windows/manifest.json staging/windows/manifest.sig release/final/
+          cp staging/macos/InfluxDesk-* release/final/
+          test -f "release/final/InfluxDesk-$RELEASE_VERSION-win10-x64-installer.exe"
+          test -f "release/final/InfluxDesk-$RELEASE_VERSION-win11-x64-installer.msi"
+          test -f "release/final/InfluxDesk-$RELEASE_VERSION-macos-universal.zip"
+          test -f "release/final/InfluxDesk-$RELEASE_VERSION-macos-universal.dmg"
+          cd release/final
+          sha256sum InfluxDesk-* > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - name: Create GitHub release draft
+        run: |
+          test "$GITHUB_REF_NAME" = "v$RELEASE_VERSION"
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --verify-tag \
+            --title "InfluxDesk $GITHUB_REF_NAME" \
+            --generate-notes \
+            --draft \
+            release/final/*

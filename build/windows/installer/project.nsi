@@ -132,9 +132,12 @@ ManifestDPIAware true
 
 !insertmacro MUI_LANGUAGE "SimpChinese" # Set the Language of the installer
 
-## The following two statements can be used to sign the installer and the uninstaller. The path to the binaries are provided in %1
-#!uninstfinalize 'signtool --file "%1"'
-#!finalize 'signtool --file "%1"'
+## Production builds pass an absolute signing-script path. The same fail-closed
+## verifier signs both the generated uninstaller and the final NSIS package.
+!ifdef INFLUXDESK_SIGN_SCRIPT
+!uninstfinalize 'powershell -NoProfile -ExecutionPolicy Bypass -File "${INFLUXDESK_SIGN_SCRIPT}" -Path "%1"'
+!finalize 'powershell -NoProfile -ExecutionPolicy Bypass -File "${INFLUXDESK_SIGN_SCRIPT}" -Path "%1"'
+!endif
 
 Name "${INFO_PRODUCTNAME}"
 OutFile "..\..\bin\${INFO_PROJECTNAME}-${INFO_PRODUCTVERSION}-win10-x64-installer.exe"

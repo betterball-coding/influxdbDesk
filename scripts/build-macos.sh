@@ -87,6 +87,13 @@ esac
 
 xattr -cr "$app_path"
 sign_identity="${MACOS_SIGN_IDENTITY:--}"
+require_production_signing="${INFLUXDESK_REQUIRE_PRODUCTION_SIGNING:-0}"
+notary_profile="${MACOS_NOTARY_PROFILE:-}"
+notary_keychain="${MACOS_NOTARY_KEYCHAIN:-}"
+if [[ "$require_production_signing" == "1" && ( "$sign_identity" == "-" || -z "$notary_profile" ) ]]; then
+  echo "production macOS builds require MACOS_SIGN_IDENTITY and MACOS_NOTARY_PROFILE." >&2
+  exit 2
+fi
 if [[ "$sign_identity" == "-" ]]; then
   codesign --force --deep --sign - --timestamp=none "$app_path"
   signing_status="ad-hoc"
@@ -106,7 +113,6 @@ rm -f "$zip_path" "$dmg_path" "$release_dir/SHA256SUMS.txt" "$release_dir/BUILD_
 ditto -c -k --sequesterRsrc --keepParent "$app_path" "$zip_path"
 
 notarization_status="not submitted"
-notary_profile="${MACOS_NOTARY_PROFILE:-}"
 if [[ -n "$notary_profile" ]]; then
   if [[ "$sign_identity" == "-" ]]; then
     echo "MACOS_NOTARY_PROFILE requires a Developer ID MACOS_SIGN_IDENTITY." >&2
@@ -116,8 +122,13 @@ if [[ -n "$notary_profile" ]]; then
     echo "xcrun is required for notarization." >&2
     exit 2
   fi
-  xcrun notarytool submit "$zip_path" --keychain-profile "$notary_profile" --wait
+  notary_args=(--keychain-profile "$notary_profile")
+  if [[ -n "$notary_keychain" ]]; then
+    notary_args+=(--keychain "$notary_keychain")
+  fi
+  xcrun notarytool submit "$zip_path" "${notary_args[@]}" --wait
   xcrun stapler staple "$app_path"
+  xcrun stapler validate "$app_path"
   rm -f "$zip_path"
   ditto -c -k --sequesterRsrc --keepParent "$app_path" "$zip_path"
   notarization_status="accepted and stapled"
@@ -137,8 +148,15 @@ if [[ "$sign_identity" != "-" ]]; then
   codesign --verify --verbose=2 "$dmg_path"
 fi
 if [[ -n "$notary_profile" ]]; then
-  xcrun notarytool submit "$dmg_path" --keychain-profile "$notary_profile" --wait
+  xcrun notarytool submit "$dmg_path" "${notary_args[@]}" --wait
   xcrun stapler staple "$dmg_path"
+  xcrun stapler validate "$dmg_path"
+fi
+
+if [[ "$require_production_signing" == "1" ]]; then
+  [[ "$signing_status" == Developer\ ID:* ]] || { echo "Developer ID signing verification failed." >&2; exit 1; }
+  [[ "$notarization_status" == "accepted and stapled" ]] || { echo "notarization verification failed." >&2; exit 1; }
+  spctl --assess --type execute --verbose=4 "$app_path"
 fi
 
 (

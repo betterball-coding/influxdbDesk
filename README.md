@@ -14,6 +14,8 @@
   <a href="https://github.com/betterball-coding/influxdbDesk/issues">问题反馈</a>
   ·
   <a href="docs/IMPLEMENTATION_STATUS.md">实现状态</a>
+  ·
+  <a href="docs/CROSS_PLATFORM_MAINTENANCE.md">跨平台维护</a>
 </p>
 
 <p align="center">
@@ -97,6 +99,8 @@ InfluxDesk 是一个专注于 InfluxDB 1.x 的中文桌面工作台。它把连�
 
 工具链：Go 1.25.12、Node.js 22.22.2、Wails 2.13.0。
 
+仓库采用单一 `main` 主线：React 与 Go 业务代码由所有平台共享，原生差异通过带 build tag 的平台适配器隔离。Win10、Win11 和 macOS 安装包必须从同一个版本标签构建，详细规则见 [跨平台维护规范](docs/CROSS_PLATFORM_MAINTENANCE.md)。
+
 ```bash
 cd frontend
 npm ci
@@ -127,15 +131,19 @@ scripts/build-macos.sh universal
 
 - `frontend/`：React 查询工作台、连接管理、结果视图和传输任务界面。
 - `app.go`：Wails 前后端桥接和应用启动恢复。
+- `platform_windows.go`、`platform_darwin.go`：Wails 原生窗口、菜单和平台行为适配。
+- `internal/credential`、`internal/localapp`：Credential Manager/Keychain 与私有数据目录适配。
 - `internal/query`、`internal/influxql`：查询执行、精确结果和 InfluxQL 安全分类。
 - `internal/operation`、`internal/protection`：变更预览、写入保护和一次性授权。
 - `internal/transfer`、`internal/importworker`、`internal/exportworker`：逻辑导入导出与恢复。
 - `build/windows/wix`：Windows x64 WiX MSI 工程。
 - `build/darwin`、`scripts/build-macos.sh`：macOS bundle 配置与 universal ZIP/DMG 构建链。
+- `.github/workflows/ci.yml`：共享、Windows 原生和 macOS 原生三层 CI。
+- `.github/workflows/release.yml`：同标签构建、签名、公证并生成 Release 草稿。
 
 ## 反馈与贡献
 
-发现问题或有功能建议，请提交 [GitHub Issue](https://github.com/betterball-coding/influxdbDesk/issues)。提交代码前请先运行 Go 测试、前端测试和生产构建。
+发现问题或有功能建议，请提交 [GitHub Issue](https://github.com/betterball-coding/influxdbDesk/issues)。提交代码前请阅读 [贡献指南](CONTRIBUTING.md)，并运行能够在本机执行的测试。
 
 ## 许可证
 

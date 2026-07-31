@@ -6,3 +6,6 @@ build/windows/wix/bin/
 build/windows/wix/obj/
 release/*.part
 release/macos/
+release/windows/
+release/final/
+staging/

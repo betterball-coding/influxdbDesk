@@ -70,6 +70,9 @@ func TestWindows10NSISContract(t *testing.T) {
 		`ExecWait`,
 		`MUI_LANGUAGE "SimpChinese"`,
 		`win10-x64-installer.exe`,
+		`!uninstfinalize`,
+		`!finalize`,
+		`INFLUXDESK_SIGN_SCRIPT`,
 	} {
 		if !strings.Contains(project, required) {
 			t.Errorf("project.nsi is missing %s", required)
@@ -109,22 +112,28 @@ func TestWindowsManifestDeclaresWindows10Compatibility(t *testing.T) {
 }
 
 func TestReleaseWorkflowRequiresRealSignedArtifacts(t *testing.T) {
-	workflow := read(t, filepath.Join(repositoryRoot(t), ".github", "workflows", "windows-release.yml"))
+	workflow := read(t, filepath.Join(repositoryRoot(t), ".github", "workflows", "release.yml"))
 	for _, required := range []string{
-		"steps.locate-msi.outputs.path",
+		"steps.windows11.outputs.path",
 		`Get-ChildItem .\build\windows\wix\bin -Filter *.msi -Recurse`,
-		"release/manifest.json",
-		"release/manifest.sig",
+		"release\\windows\\manifest.json",
+		"release\\windows\\manifest.sig",
 		"if-no-files-found: error",
 		"cmd\\releasetool verify",
+		"Win10InstallerPath",
+		"EmbeddedChannelPublicKeyBase64",
 	} {
 		if !strings.Contains(workflow, required) {
 			t.Errorf("release workflow is missing %s", required)
 		}
 	}
 	verificationScript := read(t, filepath.Join(repositoryRoot(t), "scripts", "verify-release.ps1"))
-	if !strings.Contains(verificationScript, "Get-AuthenticodeSignature") || !strings.Contains(verificationScript, "TimeStamperCertificate") {
+	if !strings.Contains(verificationScript, "Get-AuthenticodeSignature") || !strings.Contains(verificationScript, "TimeStamperCertificate") || !strings.Contains(verificationScript, "Win10InstallerPath") {
 		t.Error("release verification does not check Authenticode and timestamping")
+	}
+	signingScript := read(t, filepath.Join(repositoryRoot(t), "scripts", "sign-windows-artifact.ps1"))
+	if !strings.Contains(signingScript, "SIGN_COMMAND") || !strings.Contains(signingScript, "TimeStamperCertificate") {
+		t.Error("Windows signing helper does not fail closed on credentials and timestamping")
 	}
 }
 
