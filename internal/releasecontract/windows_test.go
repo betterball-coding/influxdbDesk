@@ -22,6 +22,9 @@ func TestWiXProductionContract(t *testing.T) {
 	if strings.Contains(wixProject, `WixToolset.Sdk/7.`) {
 		t.Error("WiX 7 requires explicit OSMF EULA acceptance and must not be used implicitly")
 	}
+	if !strings.Contains(wixProject, `<Platform>x64</Platform>`) {
+		t.Error("WiX project must target x64")
+	}
 	decoder := xml.NewDecoder(strings.NewReader(wxs))
 	for {
 		_, err := decoder.Token()
@@ -35,7 +38,6 @@ func TestWiXProductionContract(t *testing.T) {
 	for _, required := range []string{
 		stableUpgradeCode,
 		`Scope="perMachine"`,
-		`Platform="x64"`,
 		`AllowSameVersionUpgrades="no"`,
 		`Schedule="afterInstallInitialize"`,
 		`ProgramFiles64Folder`,

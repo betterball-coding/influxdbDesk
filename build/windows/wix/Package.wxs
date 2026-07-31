@@ -9,7 +9,6 @@
       InstallerVersion="500"
       Compressed="yes">
 
-    <SummaryInformation Platform="x64" />
     <MajorUpgrade
         DowngradeErrorMessage="A newer version of InfluxDesk is already installed."
         AllowSameVersionUpgrades="no"
