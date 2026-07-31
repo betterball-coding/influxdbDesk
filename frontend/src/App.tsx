@@ -10,7 +10,6 @@ import { SettingsPage } from './components/SettingsPage'
 import { StatusBar } from './components/StatusBar'
 import { TaskDrawer } from './components/TaskDrawer'
 import { TransferPanel } from './components/TransferPanel'
-import { WorkspaceHeader } from './components/WorkspaceHeader'
 import { useWorkbenchStore } from './store'
 
 const QueryEditor = lazy(() => import('./components/QueryEditor').then((module) => ({ default: module.QueryEditor })))
@@ -82,7 +81,6 @@ function App() {
 
   return (
     <div className="app-shell">
-      <WorkspaceHeader />
       <div className="app-content">
         {activeView === 'query' && <QueryWorkbench />}
         {activeView === 'connections' && <ConnectionsPage />}

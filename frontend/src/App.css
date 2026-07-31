@@ -1652,55 +1652,10 @@
 /* Navicat-style workbench shell approved in design-prototypes/navicat-workbench.html. */
 .app-shell {
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: 34px minmax(0, 1fr) 26px;
+  grid-template-rows: minmax(0, 1fr) 26px;
   min-width: 800px;
   min-height: 600px;
   overflow: hidden;
-}
-
-.workspace-header {
-  position: relative;
-  z-index: 20;
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) 220px;
-  min-width: 0;
-  align-items: center;
-  color: #d9e4e7;
-  background: var(--bg-nav);
-  border-bottom: 1px solid #0e181d;
-  user-select: none;
-}
-
-.workspace-brand {
-  display: inline-flex;
-  width: fit-content;
-  height: 100%;
-  align-items: center;
-  gap: 8px;
-  padding: 0 13px;
-  color: #fff;
-  font-size: 12px;
-  background: transparent;
-  border: 0;
-}
-
-.workspace-brand:hover {
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.workspace-brand svg {
-  color: #5bd6c8;
-}
-
-.workspace-context {
-  grid-column: 2;
-  min-width: 0;
-  overflow: hidden;
-  color: #90a0a5;
-  font-size: 10px;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .app-content {
@@ -2240,10 +2195,6 @@
 }
 
 @media (max-width: 1240px) {
-  .workspace-header {
-    grid-template-columns: 180px minmax(0, 1fr) 180px;
-  }
-
   .status-capacity,
   .status-cache {
     display: none !important;
@@ -2256,10 +2207,6 @@
 }
 
 @media (max-width: 1160px) {
-  .workspace-header {
-    grid-template-columns: 150px minmax(0, 1fr) 150px;
-  }
-
   .result-tabs-bar {
     overflow: hidden;
   }
