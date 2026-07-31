@@ -16,6 +16,9 @@
         Schedule="afterInstallInitialize" />
     <MediaTemplate EmbedCab="yes" />
 
+    <Launch Condition="Installed OR WindowsBuild &gt;= 22000"
+            Message="InfluxDesk 的此 MSI 安装包仅支持 Windows 11 x64（build 22000 或更高版本）。" />
+
     <Property Id="WEBVIEW2_RUNTIME_VERSION">
       <RegistrySearch
           Id="FindEvergreenWebView2"
@@ -26,7 +29,7 @@
           Bitness="always32" />
     </Property>
     <Launch Condition="Installed OR WEBVIEW2_RUNTIME_VERSION"
-            Message="Microsoft Edge WebView2 Evergreen Runtime (x64) must be installed by your administrator before installing InfluxDesk." />
+            Message="安装 InfluxDesk 前，管理员必须先安装 Microsoft Edge WebView2 Evergreen Runtime (x64)。" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="InfluxDesk">

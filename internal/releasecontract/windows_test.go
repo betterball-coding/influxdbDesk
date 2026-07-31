@@ -32,6 +32,7 @@ func TestWiXProductionContract(t *testing.T) {
 		`AllowSameVersionUpgrades="no"`,
 		`Schedule="afterInstallInitialize"`,
 		`ProgramFiles64Folder`,
+		`WindowsBuild &gt;= 22000`,
 		`WEBVIEW2_RUNTIME_VERSION`,
 		`{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}`,
 		`Bitness="always32"`,

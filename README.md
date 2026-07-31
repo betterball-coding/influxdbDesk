@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/betterball-coding/influxdbDesk/releases/tag/v0.1.0">下载 v0.1.0</a>
+  <a href="https://github.com/betterball-coding/influxdbDesk/releases/tag/v1.0.0">下载 v1.0.0</a>
   ·
   <a href="https://github.com/betterball-coding/influxdbDesk/issues">问题反馈</a>
   ·
@@ -54,16 +54,17 @@ InfluxDesk 是一个专注于 InfluxDB 1.x 的中文桌面工作台。它把连�
 
 ## 下载
 
-当前版本为 [v0.1.0 预发布版](https://github.com/betterball-coding/influxdbDesk/releases/tag/v0.1.0)，面向 Windows 10/11 x64：
+当前版本为 [v1.0.0](https://github.com/betterball-coding/influxdbDesk/releases/tag/v1.0.0)，支持 Windows 10/11 x64 与 macOS universal：
 
 | 文件 | 用途 |
 | --- | --- |
-| `InfluxDesk-0.1.0-windows-x64-portable.zip` | 解压后直接运行的便携版本 |
+| `InfluxDesk-1.0.0-win10-x64-installer.exe` | Windows 10 x64 NSIS 安装器，携带 WebView2 bootstrapper |
+| `InfluxDesk-1.0.0-win11-x64-installer.msi` | Windows 11 x64（build 22000+）WiX 安装器，使用系统 WebView2 Runtime |
+| `InfluxDesk-1.0.0-macos-universal.dmg` | macOS 12+ 安装镜像，支持 Apple Silicon 与 Intel |
+| `InfluxDesk-1.0.0-macos-universal.zip` | macOS 12+ universal `.app` 压缩包 |
 | `SHA256SUMS.txt` | 发布文件完整性校验 |
 
-> v0.1.0 是功能预览版，EXE 尚未进行 Authenticode 商业代码签名。Windows SmartScreen 可能显示未知发布者提示，请只从本仓库 Releases 下载，并在运行前核对 SHA-256。
-
-当前 v0.1.0 Release 仍只提供 Windows x64 包。macOS universal 构建链及本机构建方式见 [macOS 构建与发布](docs/MACOS_BUILD.md)；在 Developer ID 签名、公证和真实 Mac 验收完成前，不把 CI 的 ad-hoc 包作为正式下载发布。
+> v1.0.0 是非预发布版本号，但当前仓库没有商业签名凭据。Windows EXE/MSI 未做 Authenticode 签名；macOS `.app` 仅做 ad-hoc 签名且未公证。SmartScreen 或 Gatekeeper 可能显示安全警告，请只从本仓库 Releases 下载并核对 SHA-256。
 
 ### 系统要求
 
@@ -76,8 +77,8 @@ InfluxDesk 是一个专注于 InfluxDB 1.x 的中文桌面工作台。它把连�
 
 ## 快速开始
 
-1. 从 Releases 下载便携 ZIP，并核对 `SHA256SUMS.txt`。
-2. 解压并运行 `InfluxDesk.exe`。
+1. 从 Releases 下载对应系统的安装包，并核对 `SHA256SUMS.txt`。
+2. Windows 运行 EXE/MSI 安装器；macOS 打开 DMG 后将 `InfluxDesk.app` 拖入 Applications。
 3. 打开“连接”，填写 InfluxDB 地址、端口、账号和默认数据库。
 4. 测试并打开连接，在 Schema 面板选择 measurement 后编写 InfluxQL。
 5. 保持“保护模式”即可安全执行只读查询和逻辑导出；写操作需要显式解锁并完成预览确认。
@@ -87,7 +88,7 @@ InfluxDesk 是一个专注于 InfluxDB 1.x 的中文桌面工作台。它把连�
 - InfluxDesk 的导入导出属于**逻辑数据传输**，不是 InfluxDB 服务端备份、快照或灾难恢复工具。
 - 写操作默认锁定；永久只读连接不能通过界面升级为可写连接。
 - 查询结果中的大整数和高精度数值以文本语义保留，图表仅使用显式的非权威数值投影。
-- v0.1.0 尚未完成商业代码签名、完整 Windows VM 安装生命周期和真实生产环境认证，不应直接作为无人值守生产发布。
+- v1.0.0 尚未完成商业代码签名、完整 Windows VM 安装生命周期和真实生产环境认证，不应直接作为无人值守生产发布。
 - macOS 版本尚需在真实 Apple Silicon/Intel 主机上完成 Cocoa、Keychain、Gatekeeper、Developer ID 签名与 Apple 公证验收。
 
 更完整的实现范围、测试门禁和未完成事项见 [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)。
