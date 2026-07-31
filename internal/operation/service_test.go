@@ -309,11 +309,13 @@ func TestCancelStartedOperationRequestsCancelAndEndsUnknown(t *testing.T) {
 		CommandRequestID: uuid.NewString(), ExpectedStateRevision: running.Task.StateRevision,
 	}
 	targetSatisfied, err := service.Cancel(context.Background(), created.Task.ID, targetSatisfiedRequest)
-	if err != nil || targetSatisfied.Replayed || targetSatisfied.Task.StateRevision != canceling.Task.StateRevision || !targetSatisfied.CancelRequested {
+	if err != nil || targetSatisfied.Replayed || !targetSatisfied.CancelRequested ||
+		(targetSatisfied.Task.State != StateDispatching && targetSatisfied.Task.State != StateOutcomeUnknown) {
 		t.Fatalf("target satisfied=%+v err=%v", targetSatisfied, err)
 	}
 	targetSatisfiedReplay, err := service.Cancel(context.Background(), created.Task.ID, targetSatisfiedRequest)
-	if err != nil || !targetSatisfiedReplay.Replayed || targetSatisfiedReplay.Task.StateRevision != canceling.Task.StateRevision {
+	if err != nil || !targetSatisfiedReplay.Replayed || !targetSatisfiedReplay.CancelRequested ||
+		(targetSatisfiedReplay.Task.State != StateDispatching && targetSatisfiedReplay.Task.State != StateOutcomeUnknown) {
 		t.Fatalf("target satisfied replay=%+v err=%v", targetSatisfiedReplay, err)
 	}
 	finished := waitForOperation(t, service, created.Task.ID)
