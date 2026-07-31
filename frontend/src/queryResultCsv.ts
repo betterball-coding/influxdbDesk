@@ -13,11 +13,20 @@ function escapeCSV(value: string): string {
   return `"${value.replaceAll('"', '""')}"`
 }
 
+function neutralizeCSVFormula(value: string): string {
+  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value
+}
+
+function cellCSVText(value: TypedScalar | undefined): string {
+  const text = cellText(value)
+  return value?.kind === 'string' ? neutralizeCSVFormula(text) : text
+}
+
 export function buildQueryResultCSV(result: QueryResult, rows: ResultRow[]): string {
   const records = [
-    result.columns.map((column) => escapeCSV(column.label)).join(','),
+    result.columns.map((column) => escapeCSV(neutralizeCSVFormula(column.label))).join(','),
     ...rows.map((row) => result.columns
-      .map((column) => escapeCSV(cellText(row.cells[column.key])))
+      .map((column) => escapeCSV(cellCSVText(row.cells[column.key])))
       .join(',')),
   ]
   return `\ufeff${records.join('\r\n')}\r\n`

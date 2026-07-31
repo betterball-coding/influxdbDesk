@@ -29,7 +29,7 @@ func NewRepository(s *store.Store, now func() time.Time) *Repository {
 
 func (r *Repository) List(ctx context.Context) ([]Profile, error) {
 	rows, err := r.store.DB().QueryContext(ctx, `SELECT id,revision,name,base_url,default_database,environment,
-		auth_mode,username,credential_kind,credential_ref,protection_mode,created_at,updated_at
+		auth_mode,username,allow_insecure_auth,credential_kind,credential_ref,protection_mode,created_at,updated_at
 		FROM profiles ORDER BY lower(name),id`)
 	if err != nil {
 		return nil, err
@@ -91,15 +91,16 @@ func (r *Repository) Save(ctx context.Context, req SaveRequest) (Profile, error)
 				ID: req.ID, Revision: "1", Name: req.Name, BaseURL: req.BaseURL,
 				DefaultDatabase: req.DefaultDatabase,
 				Environment:     req.Environment, AuthMode: req.AuthMode, Username: req.Username,
-				CredentialKind: credentialKind, CredentialRef: credentialRef,
+				AllowInsecureAuth: req.AllowInsecureAuth,
+				CredentialKind:    credentialKind, CredentialRef: credentialRef,
 				ProtectionMode: req.ProtectionMode, CreatedAt: now, UpdatedAt: now,
 			}
 			_, err := tx.ExecContext(ctx, `INSERT INTO profiles(
-					id,revision,name,base_url,default_database,environment,auth_mode,username,credential_kind,
-					credential_ref,protection_mode,created_at,updated_at
-				) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, out.ID, out.Revision, out.Name, out.BaseURL,
-				out.DefaultDatabase, string(out.Environment), string(out.AuthMode), nullable(out.Username), nullableKind(out.CredentialKind),
-				nullableString(out.CredentialRef), string(out.ProtectionMode), out.CreatedAt, out.UpdatedAt)
+						id,revision,name,base_url,default_database,environment,auth_mode,username,allow_insecure_auth,
+						credential_kind,credential_ref,protection_mode,created_at,updated_at
+					) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, out.ID, out.Revision, out.Name, out.BaseURL,
+				out.DefaultDatabase, string(out.Environment), string(out.AuthMode), nullable(out.Username), out.AllowInsecureAuth,
+				nullableKind(out.CredentialKind), nullableString(out.CredentialRef), string(out.ProtectionMode), out.CreatedAt, out.UpdatedAt)
 			return err
 		}
 
@@ -118,14 +119,15 @@ func (r *Repository) Save(ctx context.Context, req SaveRequest) (Profile, error)
 			ID: req.ID, Revision: revision, Name: req.Name, BaseURL: req.BaseURL,
 			DefaultDatabase: req.DefaultDatabase,
 			Environment:     req.Environment, AuthMode: req.AuthMode, Username: req.Username,
-			CredentialKind: credentialKind, CredentialRef: credentialRef,
+			AllowInsecureAuth: req.AllowInsecureAuth,
+			CredentialKind:    credentialKind, CredentialRef: credentialRef,
 			ProtectionMode: req.ProtectionMode, CreatedAt: current.CreatedAt, UpdatedAt: now,
 		}
 		result, err := tx.ExecContext(ctx, `UPDATE profiles SET revision=?,name=?,base_url=?,default_database=?,
-				environment=?,auth_mode=?,username=?,credential_kind=?,credential_ref=?,
+				environment=?,auth_mode=?,username=?,allow_insecure_auth=?,credential_kind=?,credential_ref=?,
 				protection_mode=?,updated_at=? WHERE id=? AND revision=?`, out.Revision, out.Name,
 			out.BaseURL, out.DefaultDatabase, string(out.Environment), string(out.AuthMode), nullable(out.Username),
-			nullableKind(out.CredentialKind), nullableString(out.CredentialRef), string(out.ProtectionMode),
+			out.AllowInsecureAuth, nullableKind(out.CredentialKind), nullableString(out.CredentialRef), string(out.ProtectionMode),
 			out.UpdatedAt, out.ID, current.Revision)
 		if err != nil {
 			return err
@@ -205,7 +207,7 @@ type rowScanner interface {
 
 func getInTx(ctx context.Context, tx store.Executor, id string) (Profile, error) {
 	row := tx.QueryRowContext(ctx, `SELECT id,revision,name,base_url,default_database,environment,
-		auth_mode,username,credential_kind,credential_ref,protection_mode,created_at,updated_at
+		auth_mode,username,allow_insecure_auth,credential_kind,credential_ref,protection_mode,created_at,updated_at
 		FROM profiles WHERE id=?`, id)
 	value, err := scanProfile(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -219,7 +221,7 @@ func scanProfile(row rowScanner) (Profile, error) {
 	var environment, authMode, protectionMode string
 	var username, kind, ref sql.NullString
 	if err := row.Scan(&value.ID, &value.Revision, &value.Name, &value.BaseURL, &value.DefaultDatabase, &environment,
-		&authMode, &username, &kind, &ref, &protectionMode, &value.CreatedAt, &value.UpdatedAt); err != nil {
+		&authMode, &username, &value.AllowInsecureAuth, &kind, &ref, &protectionMode, &value.CreatedAt, &value.UpdatedAt); err != nil {
 		return Profile{}, err
 	}
 	value.Environment = Environment(environment)
@@ -284,6 +286,13 @@ func validateSaveRequest(req *SaveRequest) error {
 		return fmt.Errorf("%w: base URL", ErrInvalidProfile)
 	}
 	dispatcher.CloseIdleConnections()
+	requiresConsent, err := transport.RequiresInsecureAuthConsent(req.BaseURL, req.AuthMode)
+	if err != nil || requiresConsent && !req.AllowInsecureAuth {
+		return fmt.Errorf("%w: insecure authenticated HTTP", ErrInvalidProfile)
+	}
+	if !requiresConsent {
+		req.AllowInsecureAuth = false
+	}
 	return nil
 }
 

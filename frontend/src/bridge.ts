@@ -61,6 +61,7 @@ export interface ConnectionDraft {
   defaultDatabase: string
   username?: string
   secret?: string
+  allowInsecureAuth?: boolean
   environment?: ConnectionProfile['environment']
   authMode?: 'NONE' | 'BASIC' | 'BEARER'
   protectionMode?: 'PermanentReadOnly' | 'ProtectedLocked'
@@ -93,6 +94,7 @@ interface NativeProfile {
   environment: ConnectionProfile['environment']
   authMode: 'NONE' | 'BASIC' | 'BEARER'
   username?: string
+  allowInsecureAuth: boolean
   protectionMode: 'PermanentReadOnly' | 'ProtectedLocked'
 }
 
@@ -105,6 +107,7 @@ function profileView(profile: NativeProfile): ConnectionProfile {
     defaultDatabase: profile.defaultDatabase,
     authMode: profile.authMode,
     username: profile.username,
+    allowInsecureAuth: profile.allowInsecureAuth,
     environment: profile.environment,
     protectionMode: profile.protectionMode,
     state: 'disconnected',
@@ -497,6 +500,7 @@ export const bridge = {
         defaultDatabase: draft.defaultDatabase,
         authMode: draftAuthMode(draft),
         username: draft.username,
+        allowInsecureAuth: draft.allowInsecureAuth ?? false,
         environment: draft.environment ?? 'development',
         protectionMode: draft.protectionMode ?? 'ProtectedLocked',
         state: 'disconnected',
@@ -512,6 +516,7 @@ export const bridge = {
       environment: draft.environment ?? 'development',
       authMode,
       username: authMode === 'BASIC' ? draft.username?.trim() ?? '' : '',
+      allowInsecureAuth: draft.allowInsecureAuth ?? false,
       protectionMode: draft.protectionMode ?? 'ProtectedLocked',
       secret: authMode === 'NONE' ? undefined : draft.secret || undefined,
     })) as NativeProfile
@@ -588,6 +593,7 @@ export const bridge = {
         authMode,
         username: authMode === 'BASIC' ? draft.username?.trim() ?? '' : '',
         secret: authMode === 'NONE' ? '' : draft.secret ?? '',
+        allowInsecureAuth: draft.allowInsecureAuth ?? false,
       })) as { ok: boolean; latencyMs: number; version: string }
     }
     await delay(650)

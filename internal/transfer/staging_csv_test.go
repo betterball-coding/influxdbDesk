@@ -202,3 +202,32 @@ func TestStageImportRejectsEmptySourcesWithoutSettlement(t *testing.T) {
 		}
 	}
 }
+
+func TestStageImportCSVRejectsOversizedRecordsBeforeCSVDecode(t *testing.T) {
+	base := StageImportRequest{
+		Format: ImportStageCSV, Destination: &bytes.Buffer{}, CSVRecordLimitBytes: 64,
+		Reserve: func(context.Context, int64) error { return nil }, SettleReservation: settleStageReservation,
+		CSVMapping: &CSVMapping{
+			StaticMeasurement: "m", TimestampColumn: "time",
+			FieldColumns: map[string]CSVFieldMapping{"value": {Target: "value", Kind: CSVFieldString}},
+		},
+	}
+	tests := []struct {
+		name   string
+		source string
+	}{
+		{name: "header", source: strings.Repeat("h", 65) + ",value\n1,text\n"},
+		{name: "row", source: "time,value\n1," + strings.Repeat("x", 64) + "\n"},
+		{name: "multiline quoted row", source: "time,value\n1,\"" + strings.Repeat("x\n", 40) + "\"\n"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := base
+			request.Source = strings.NewReader(test.source)
+			_, err := StageImport(context.Background(), request)
+			if !errors.Is(err, ErrStagePointTooLarge) {
+				t.Fatalf("oversized CSV record error = %v", err)
+			}
+		})
+	}
+}

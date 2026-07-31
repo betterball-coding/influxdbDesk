@@ -128,6 +128,30 @@ func TestDecodeChunkedRejectsInvalidExactTypes(t *testing.T) {
 	}
 }
 
+func TestDecodeChunkedFramesConsecutiveObjectsWithoutNewlines(t *testing.T) {
+	wire := `{"results":[{"statement_id":0,"partial":true,"series":[{"name":"cpu","columns":["value"],"values":[["text }{ remains text"]]}]}]}` +
+		`{"results":[{"statement_id":0}]}`
+	result, err := DecodeChunked(strings.NewReader(wire), DecodeConfig{Statements: []StatementSpec{{}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ChunkCount != 2 || result.Statements[0].Series[0].Rows[0][0].StringValue != "text }{ remains text" {
+		t.Fatalf("decoded result = %#v", result)
+	}
+}
+
+func TestDecodeChunkedRejectsOversizedTopLevelObjectBeforeDecode(t *testing.T) {
+	wire := `{"results":[{"statement_id":0}],"padding":"` + strings.Repeat("x", 128) + `"}`
+	_, err := DecodeChunked(strings.NewReader(wire), DecodeConfig{
+		Statements: []StatementSpec{{}}, MaxChunkBytes: 64,
+	})
+	var protocol *DecodeError
+	if !errors.As(err, &protocol) || protocol.Code != ProtocolChunkTooLarge ||
+		!errors.Is(protocol.Cause, errQueryChunkTooLarge) {
+		t.Fatalf("oversized chunk error = %#v", err)
+	}
+}
+
 func TestMakeSeriesIDSortsTagsAndSeparatesBoundaries(t *testing.T) {
 	t.Parallel()
 

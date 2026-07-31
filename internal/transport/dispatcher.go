@@ -87,6 +87,9 @@ func NewDispatcher(config Config) (*Dispatcher, error) {
 	if err := validateAuth(config.Auth); err != nil {
 		return nil, err
 	}
+	if requiresInsecureAuthConsent(baseURL, config.Auth.Mode) && !config.AllowInsecureAuth {
+		return nil, fmt.Errorf("%w: authenticated HTTP requires explicit insecure transport consent", ErrInvalidConfig)
+	}
 
 	connectTimeout := config.ConnectTimeout
 	if connectTimeout <= 0 {
@@ -389,6 +392,35 @@ func validateAuth(auth AuthConfig) error {
 		return fmt.Errorf("%w: unsupported authentication mode", ErrInvalidConfig)
 	}
 	return nil
+}
+
+// RequiresInsecureAuthConsent reports whether an authenticated endpoint would
+// send credentials over cleartext to a non-loopback host.
+func RequiresInsecureAuthConsent(rawBaseURL string, mode AuthMode) (bool, error) {
+	baseURL, err := normalizeBaseURL(rawBaseURL)
+	if err != nil {
+		return false, err
+	}
+	switch mode {
+	case "", AuthNone:
+		return false, nil
+	case AuthBasic, AuthBearer:
+		return requiresInsecureAuthConsent(baseURL, mode), nil
+	default:
+		return false, fmt.Errorf("%w: unsupported authentication mode", ErrInvalidConfig)
+	}
+}
+
+func requiresInsecureAuthConsent(baseURL *url.URL, mode AuthMode) bool {
+	return baseURL.Scheme == "http" && mode != "" && mode != AuthNone && !isLoopbackHost(baseURL.Hostname())
+}
+
+func isLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func normalizeProxy(config ProxyConfig) (*url.URL, error) {

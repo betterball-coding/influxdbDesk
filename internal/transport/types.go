@@ -85,6 +85,7 @@ type ProxyConfig struct {
 type Config struct {
 	BaseURL           string
 	Auth              AuthConfig
+	AllowInsecureAuth bool
 	Proxy             *ProxyConfig
 	RootCAs           *x509.CertPool
 	ClientCertificate *tls.Certificate

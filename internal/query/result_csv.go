@@ -71,7 +71,11 @@ func (s *Service) WriteResultCSV(
 	}
 	writer := csv.NewWriter(output)
 	writer.UseCRLF = true
-	if err := writer.Write(selectedSeries.Columns); err != nil {
+	header := make([]string, len(selectedSeries.Columns))
+	for index, column := range selectedSeries.Columns {
+		header[index] = neutralizeCSVFormula(column)
+	}
+	if err := writer.Write(header); err != nil {
 		return 0, err
 	}
 
@@ -135,7 +139,7 @@ func csvScalarText(value TypedScalar, location *time.Location) (string, error) {
 	case ScalarNull:
 		return "", nil
 	case ScalarString:
-		return value.StringValue, nil
+		return neutralizeCSVFormula(value.StringValue), nil
 	case ScalarBoolean:
 		if value.BooleanValue == nil {
 			return "", errors.New("INVALID_TYPED_SCALAR")
@@ -159,5 +163,17 @@ func csvScalarText(value TypedScalar, location *time.Location) (string, error) {
 		return value.DecimalText, nil
 	default:
 		return "", errors.New("INVALID_TYPED_SCALAR")
+	}
+}
+
+func neutralizeCSVFormula(value string) string {
+	if value == "" {
+		return value
+	}
+	switch value[0] {
+	case '=', '+', '-', '@', '\t', '\r':
+		return "'" + value
+	default:
+		return value
 	}
 }

@@ -1,8 +1,11 @@
 package transfer
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/csv"
+	"errors"
 	"io"
 	"math"
 	"strconv"
@@ -53,16 +56,14 @@ type csvStageField struct {
 	kind   CSVFieldKind
 }
 
-func (p *stageProcessor) processCSV(ctx context.Context, source io.Reader, mapping CSVMapping) error {
-	reader := csv.NewReader(source)
-	reader.FieldsPerRecord = -1
-	reader.ReuseRecord = true
-	header, err := reader.Read()
+func (p *stageProcessor) processCSV(ctx context.Context, source io.Reader, mapping CSVMapping, maximumRecordBytes int) error {
+	reader := bufio.NewReaderSize(source, 64*1024)
+	header, err := readBoundedCSVRecord(ctx, reader, maximumRecordBytes)
 	if err == io.EOF {
 		return ErrStageEmpty
 	}
 	if err != nil {
-		return ErrStageInvalidInput
+		return err
 	}
 	plan, err := buildCSVStagePlan(header, mapping)
 	if err != nil {
@@ -72,11 +73,14 @@ func (p *stageProcessor) processCSV(ctx context.Context, source io.Reader, mappi
 		if err := stageContextError(ctx); err != nil {
 			return err
 		}
-		record, err := reader.Read()
+		record, err := readBoundedCSVRecord(ctx, reader, maximumRecordBytes)
 		if err == io.EOF {
 			return nil
 		}
-		if err != nil || len(record) != plan.width {
+		if err != nil {
+			return err
+		}
+		if len(record) != plan.width {
 			return ErrStageInvalidInput
 		}
 		canonical, err := plan.canonicalPoint(record)
@@ -85,6 +89,66 @@ func (p *stageProcessor) processCSV(ctx context.Context, source io.Reader, mappi
 		}
 		if err := p.writePoint(ctx, canonical); err != nil {
 			return err
+		}
+	}
+}
+
+func readBoundedCSVRecord(ctx context.Context, reader *bufio.Reader, maximum int) ([]string, error) {
+	for {
+		encoded, err := readRawCSVRecord(ctx, reader, maximum)
+		if err != nil {
+			return nil, err
+		}
+		parser := csv.NewReader(bytes.NewReader(encoded))
+		parser.FieldsPerRecord = -1
+		record, err := parser.Read()
+		if errors.Is(err, io.EOF) {
+			continue
+		}
+		if err != nil {
+			return nil, ErrStageInvalidInput
+		}
+		if _, err := parser.Read(); !errors.Is(err, io.EOF) {
+			return nil, ErrStageInvalidInput
+		}
+		return record, nil
+	}
+}
+
+func readRawCSVRecord(ctx context.Context, reader *bufio.Reader, maximum int) ([]byte, error) {
+	if maximum <= 0 {
+		return nil, ErrStagePointTooLarge
+	}
+	record := make([]byte, 0, min(maximum, 64*1024))
+	inQuotes := false
+	for {
+		if err := stageContextError(ctx); err != nil {
+			return nil, err
+		}
+		fragment, err := reader.ReadSlice('\n')
+		if len(fragment) > maximum-len(record) {
+			return nil, ErrStagePointTooLarge
+		}
+		record = append(record, fragment...)
+		for _, value := range fragment {
+			if value == '"' {
+				inQuotes = !inQuotes
+			}
+		}
+		switch {
+		case err == nil && !inQuotes:
+			return record, nil
+		case err == nil:
+			continue
+		case errors.Is(err, bufio.ErrBufferFull):
+			continue
+		case errors.Is(err, io.EOF):
+			if len(record) == 0 {
+				return nil, io.EOF
+			}
+			return record, nil
+		default:
+			return nil, err
 		}
 	}
 }

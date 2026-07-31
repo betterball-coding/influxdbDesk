@@ -93,6 +93,47 @@ func TestWriteResultCSVExportsAllPages(t *testing.T) {
 	}
 }
 
+func TestWriteResultCSVNeutralizesFormulaTextWithoutChangingTypedNumbers(t *testing.T) {
+	service := newCSVResultService(t)
+	result := &ResultSet{Statements: []StatementResult{{
+		ID: 0, Series: []*Series{{
+			ID: "series-formulas", StatementID: 0, Measurement: "unsafe",
+			Columns: []string{"=column", "plus", "minus", "at", "tab", "carriage", "number"},
+			Rows: [][]TypedScalar{{
+				{Kind: ScalarString, StringValue: "=1+1"},
+				{Kind: ScalarString, StringValue: "+cmd"},
+				{Kind: ScalarString, StringValue: "-text"},
+				{Kind: ScalarString, StringValue: "@SUM(A1:A2)"},
+				{Kind: ScalarString, StringValue: "\tformula"},
+				{Kind: ScalarString, StringValue: "\r=cmd"},
+				{Kind: ScalarInt64, DecimalText: "-42"},
+			}}, RowCount: 1,
+		}},
+	}}}
+	installCSVResult(service, "session-formulas", result)
+
+	var output bytes.Buffer
+	_, err := service.WriteResultCSV(context.Background(), CSVExportRequest{
+		SessionID: "session-formulas", StatementID: 0, SeriesID: "series-formulas", AllRows: true,
+	}, &output, time.UTC)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := csv.NewReader(strings.NewReader(strings.TrimPrefix(output.String(), "\ufeff")))
+	records, err := reader.ReadAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantHeader := []string{"'=column", "plus", "minus", "at", "tab", "carriage", "number"}
+	// encoding/csv strips CR bytes while writing; the injected apostrophe must
+	// remain first so a following formula marker cannot become active.
+	wantRow := []string{"'=1+1", "'+cmd", "'-text", "'@SUM(A1:A2)", "'\tformula", "'=cmd", "-42"}
+	if len(records) != 2 || strings.Join(records[0], "|") != strings.Join(wantHeader, "|") ||
+		strings.Join(records[1], "|") != strings.Join(wantRow, "|") {
+		t.Fatalf("formula-safe CSV records = %#v", records)
+	}
+}
+
 func newCSVResultService(t *testing.T) *Service {
 	t.Helper()
 	service, err := NewService(&fakeDispatcher{}, ServiceOptions{})

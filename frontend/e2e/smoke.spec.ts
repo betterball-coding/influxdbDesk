@@ -283,6 +283,13 @@ test('connection creation is direct and saved connections can be edited or delet
   await createDialog.getByLabel('数据库').fill('data_engine')
   await createDialog.getByLabel('用户名').fill('operator')
   await createDialog.locator('input[type="password"]').fill('secret')
+  const insecureAuthConsent = createDialog.getByRole('checkbox', { name: /允许通过 HTTP 发送认证信息/ })
+  await expect(insecureAuthConsent).toBeVisible()
+  await expect(insecureAuthConsent).not.toBeChecked()
+  await createDialog.getByRole('button', { name: '连接', exact: true }).click()
+  await expect(createDialog.getByRole('alert')).toContainText('必须确认明文传输风险')
+  await expect(createDialog).toBeVisible()
+  await insecureAuthConsent.check()
   await createDialog.getByRole('button', { name: '连接', exact: true }).click()
   await expect(page.getByRole('region', { name: 'InfluxQL 编辑器' })).toBeVisible()
 
@@ -291,6 +298,7 @@ test('connection creation is direct and saved connections can be edited or delet
   const editDialog = page.getByRole('dialog', { name: '编辑连接' })
   await expect(editDialog.getByLabel('数据库')).toHaveValue('data_engine')
   await expect(editDialog.locator('input[type="password"]')).toHaveValue('')
+  await expect(editDialog.getByRole('checkbox', { name: /允许通过 HTTP 发送认证信息/ })).toBeChecked()
   await editDialog.getByLabel('连接名称').fill('Direct edited')
   await editDialog.getByRole('button', { name: '保存并重新连接' }).click()
 

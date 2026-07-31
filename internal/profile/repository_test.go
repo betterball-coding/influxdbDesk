@@ -73,3 +73,29 @@ func TestProfileRevisionAndGenerationAreMonotonic(t *testing.T) {
 		t.Fatalf("generation tombstone was lost: last=%s err=%v", last, err)
 	}
 }
+
+func TestProfileRequiresAndPersistsAuthenticatedHTTPConsent(t *testing.T) {
+	ctx := context.Background()
+	database, err := store.Open(ctx, filepath.Join(t.TempDir(), "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	repo := NewRepository(database, time.Now)
+	request := SaveRequest{
+		Name: "LAN", BaseURL: "http://192.0.2.10:8086", Environment: EnvironmentDevelopment,
+		AuthMode: transport.AuthBasic, Username: "operator", ProtectionMode: protection.ProtectedLocked,
+	}
+	if _, err := repo.Save(ctx, request); !errors.Is(err, ErrInvalidProfile) {
+		t.Fatalf("save without consent error = %v, want ErrInvalidProfile", err)
+	}
+	request.AllowInsecureAuth = true
+	created, err := repo.Save(ctx, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := repo.Get(ctx, created.ID)
+	if err != nil || !loaded.AllowInsecureAuth {
+		t.Fatalf("loaded profile = %+v, error = %v", loaded, err)
+	}
+}

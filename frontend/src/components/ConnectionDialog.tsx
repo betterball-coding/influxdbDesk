@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Server, X } from 'lucide-react'
+import { AlertTriangle, Check, Eye, EyeOff, Server, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { ConnectionDraft } from '../bridge'
 import { useWorkbenchStore } from '../store'
@@ -12,6 +12,7 @@ interface ConnectionForm {
   database: string
   username: string
   password: string
+  allowInsecureAuth: boolean
 }
 
 const emptyForm: ConnectionForm = {
@@ -21,6 +22,25 @@ const emptyForm: ConnectionForm = {
   database: '',
   username: '',
   password: '',
+  allowInsecureAuth: false,
+}
+
+function isLoopbackHostname(hostname: string): boolean {
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, '')
+  if (normalized === 'localhost' || normalized === '::1') return true
+  const octets = normalized.split('.')
+  return octets.length === 4 && octets.every((octet) => /^\d{1,3}$/.test(octet) && Number(octet) <= 255) &&
+    Number(octets[0]) === 127
+}
+
+export function requiresInsecureAuthConsent(baseUrl: string, authenticated: boolean): boolean {
+  if (!authenticated) return false
+  try {
+    const url = new URL(baseUrl)
+    return url.protocol === 'http:' && !isLoopbackHostname(url.hostname)
+  } catch {
+    return false
+  }
 }
 
 export function buildServerUrl(host: string, port: string): string {
@@ -59,6 +79,7 @@ function formForProfile(profile: ConnectionProfile | undefined): ConnectionForm 
       database: profile.defaultDatabase ?? '',
       username: profile.username ?? '',
       password: '',
+      allowInsecureAuth: profile.allowInsecureAuth ?? false,
     }
   } catch {
     return { ...emptyForm, name: profile.name, host: profile.url, database: profile.defaultDatabase ?? '' }
@@ -76,6 +97,15 @@ export function ConnectionDialog() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [form, setForm] = useState<ConnectionForm>(emptyForm)
+  let previewBaseUrl = ''
+  try {
+    previewBaseUrl = buildServerUrl(form.host, form.port)
+  } catch {
+    // Validation reports malformed endpoints when the user submits the form.
+  }
+  const authenticated = editingProfile?.authMode === 'BEARER' ||
+    Boolean(form.username.trim() && (form.password || editingProfile?.authMode === 'BASIC'))
+  const insecureAuthConsentRequired = requiresInsecureAuthConsent(previewBaseUrl, authenticated)
 
   useEffect(() => {
     if (!open) return
@@ -94,7 +124,11 @@ export function ConnectionDialog() {
   }
 
   const update = <K extends keyof ConnectionForm>(key: K, value: ConnectionForm[K]) => {
-    setForm((current) => ({ ...current, [key]: value }))
+    setForm((current) => ({
+      ...current,
+      [key]: value,
+      ...((key === 'host' || key === 'port') ? { allowInsecureAuth: false } : {}),
+    }))
     setMessage('')
   }
 
@@ -127,6 +161,10 @@ export function ConnectionDialog() {
       setMessage('主机或端口格式无效。')
       return
     }
+    if (requiresInsecureAuthConsent(baseUrl, authenticated) && !form.allowInsecureAuth) {
+      setMessage('通过 HTTP 发送账号凭据前，必须确认明文传输风险。')
+      return
+    }
 
     const draft: ConnectionDraft = {
       id: editingProfile?.id,
@@ -136,6 +174,7 @@ export function ConnectionDialog() {
       defaultDatabase: database,
       username,
       secret: password || undefined,
+      allowInsecureAuth: requiresInsecureAuthConsent(baseUrl, authenticated) && form.allowInsecureAuth,
       environment: editingProfile?.environment ?? 'development',
       authMode: editingProfile?.authMode,
       protectionMode: editingProfile?.protectionMode ?? 'ProtectedLocked',
@@ -169,6 +208,14 @@ export function ConnectionDialog() {
           <label className="dialog-field dialog-field--wide"><span>数据库</span><input value={form.database} onChange={(event) => update('database', event.target.value)} placeholder="data_engine" /></label>
           <label className="dialog-field"><span>用户名</span><input value={form.username} onChange={(event) => update('username', event.target.value)} autoComplete="username" /></label>
           <label className="dialog-field"><span>密码</span><div className="password-shell"><input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(event) => update('password', event.target.value)} placeholder={editingProfile ? '留空则保留原密码' : '无认证时留空'} autoComplete="new-password" /><button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? '隐藏密码' : '显示密码'}>{showPassword ? <EyeOff size={14} /> : <Eye size={14} />}</button></div></label>
+          {insecureAuthConsentRequired && (
+            <label className="dialog-check dialog-check--warning dialog-field--wide">
+              <input type="checkbox" checked={form.allowInsecureAuth} onChange={(event) => update('allowInsecureAuth', event.target.checked)} />
+              <i><Check size={12} /></i>
+              <AlertTriangle size={16} />
+              <span><strong>允许通过 HTTP 发送认证信息</strong><small>账号凭据将以明文传输，仅用于可信内网中的旧版 InfluxDB。</small></span>
+            </label>
+          )}
         </div>
         <footer className="dialog-footer connection-direct-footer">
           <div>{message && <span className="test-error" role="alert">{message}</span>}</div>

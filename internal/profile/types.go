@@ -26,31 +26,33 @@ var (
 )
 
 type Profile struct {
-	ID              string             `json:"id"`
-	Revision        string             `json:"revision"`
-	Name            string             `json:"name"`
-	BaseURL         string             `json:"baseUrl"`
-	DefaultDatabase string             `json:"defaultDatabase"`
-	Environment     Environment        `json:"environment"`
-	AuthMode        transport.AuthMode `json:"authMode"`
-	Username        string             `json:"username,omitempty"`
-	CredentialKind  *credential.Kind   `json:"-"`
-	CredentialRef   *string            `json:"-"`
-	ProtectionMode  protection.Mode    `json:"protectionMode"`
-	CreatedAt       string             `json:"createdAt"`
-	UpdatedAt       string             `json:"updatedAt"`
+	ID                string             `json:"id"`
+	Revision          string             `json:"revision"`
+	Name              string             `json:"name"`
+	BaseURL           string             `json:"baseUrl"`
+	DefaultDatabase   string             `json:"defaultDatabase"`
+	Environment       Environment        `json:"environment"`
+	AuthMode          transport.AuthMode `json:"authMode"`
+	Username          string             `json:"username,omitempty"`
+	AllowInsecureAuth bool               `json:"allowInsecureAuth"`
+	CredentialKind    *credential.Kind   `json:"-"`
+	CredentialRef     *string            `json:"-"`
+	ProtectionMode    protection.Mode    `json:"protectionMode"`
+	CreatedAt         string             `json:"createdAt"`
+	UpdatedAt         string             `json:"updatedAt"`
 }
 
 type SaveRequest struct {
-	ID               string
-	ExpectedRevision string
-	Name             string
-	BaseURL          string
-	DefaultDatabase  string
-	Environment      Environment
-	AuthMode         transport.AuthMode
-	Username         string
-	ProtectionMode   protection.Mode
+	ID                string
+	ExpectedRevision  string
+	Name              string
+	BaseURL           string
+	DefaultDatabase   string
+	Environment       Environment
+	AuthMode          transport.AuthMode
+	Username          string
+	AllowInsecureAuth bool
+	ProtectionMode    protection.Mode
 }
 
 func canonicalDecimal(value string) (string, error) {

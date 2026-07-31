@@ -966,6 +966,10 @@
 .dialog-check > span { display: flex; flex-direction: column; gap: 2px; }
 .dialog-check strong { font-size: 10px; }
 .dialog-check small { color: var(--text-muted); font-size: 9px; }
+.dialog-check--warning { min-width: 0; padding: 9px 10px; color: var(--amber); background: var(--amber-soft); border: 1px solid color-mix(in srgb, var(--amber) 38%, var(--border)); border-radius: 4px; }
+.dialog-check--warning > svg { flex: 0 0 auto; }
+.dialog-check--warning > span { min-width: 0; }
+.dialog-check--warning small { line-height: 1.4; white-space: normal; }
 .dialog-footer { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 7px; padding: 0 14px; background: var(--bg-panel); border-top: 1px solid var(--border); border-radius: 0 0 6px 6px; }
 .connection-direct-footer { grid-template-columns: minmax(0, 1fr) auto auto; }
 .test-success { display: flex; align-items: center; gap: 5px; color: var(--green); font-size: 9px; }

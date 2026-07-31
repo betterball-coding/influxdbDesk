@@ -28,6 +28,7 @@ export interface ConnectionProfile {
   defaultDatabase?: string
   authMode?: 'NONE' | 'BASIC' | 'BEARER'
   username?: string
+  allowInsecureAuth?: boolean
   environment: 'production' | 'staging' | 'development'
   protectionMode?: 'PermanentReadOnly' | 'ProtectedLocked'
   state: ConnectionState

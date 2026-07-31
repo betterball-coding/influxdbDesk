@@ -37,4 +37,27 @@ describe('query result CSV', () => {
   it('creates a filesystem-safe CSV filename', () => {
     expect(queryResultFilename(result.seriesName)).toBe('cpu_load-query-result.csv')
   })
+
+  it('neutralizes formula-like text while preserving typed negative numbers', () => {
+    const unsafe: QueryResult = {
+      ...result,
+      columns: [
+        { key: 'formula', label: '=column', kind: 'string' },
+        { key: 'command', label: 'command', kind: 'string' },
+        { key: 'negative', label: 'negative', kind: 'int64' },
+      ],
+      rows: [{
+        id: 'unsafe-row',
+        cells: {
+          formula: { kind: 'string', value: '@SUM(A1:A2)' },
+          command: { kind: 'string', value: '\t=cmd' },
+          negative: { kind: 'int64', decimalText: '-42' },
+        },
+      }],
+    }
+
+    expect(buildQueryResultCSV(unsafe, unsafe.rows)).toBe(
+      "\ufeff'=column,command,negative\r\n'@SUM(A1:A2),'\t=cmd,-42\r\n",
+    )
+  })
 })

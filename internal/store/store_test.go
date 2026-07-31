@@ -33,8 +33,8 @@ func TestOpenEnforcesDurabilityAndMigrates(t *testing.T) {
 	if err := s.DB().QueryRowContext(ctx, "SELECT MAX(version) FROM schema_migrations").Scan(&version); err != nil {
 		t.Fatal(err)
 	}
-	if version != 13 {
-		t.Fatalf("migration version=%d, want 13", version)
+	if version != 14 {
+		t.Fatalf("migration version=%d, want 14", version)
 	}
 	if _, err := s.DB().ExecContext(ctx, `INSERT INTO profiles(
 		id,revision,name,base_url,environment,auth_mode,protection_mode,created_at,updated_at
@@ -49,6 +49,14 @@ func TestOpenEnforcesDurabilityAndMigrates(t *testing.T) {
 	}
 	if defaultDatabase != "" {
 		t.Fatalf("legacy profile default_database=%q, want empty", defaultDatabase)
+	}
+	var allowInsecureAuth bool
+	if err := s.DB().QueryRowContext(ctx, `SELECT allow_insecure_auth FROM profiles
+		WHERE id='00000000-0000-0000-0000-000000000001'`).Scan(&allowInsecureAuth); err != nil {
+		t.Fatal(err)
+	}
+	if allowInsecureAuth {
+		t.Fatal("legacy profile unexpectedly opted into authenticated HTTP")
 	}
 }
 

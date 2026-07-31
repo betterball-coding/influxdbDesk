@@ -151,7 +151,9 @@ func (m *Manager) Open(ctx context.Context, profileID string) (Snapshot, error) 
 	if err != nil {
 		return Snapshot{}, err
 	}
-	dispatcher, err := transport.NewDispatcher(transport.Config{BaseURL: value.BaseURL, Auth: auth})
+	dispatcher, err := transport.NewDispatcher(transport.Config{
+		BaseURL: value.BaseURL, Auth: auth, AllowInsecureAuth: value.AllowInsecureAuth,
+	})
 	if err != nil {
 		return Snapshot{}, err
 	}
@@ -353,7 +355,9 @@ func (m *Manager) TestSaved(ctx context.Context, profileID string) (ProbeResult,
 	if err != nil {
 		return ProbeResult{}, err
 	}
-	dispatcher, err := transport.NewDispatcher(transport.Config{BaseURL: value.BaseURL, Auth: auth})
+	dispatcher, err := transport.NewDispatcher(transport.Config{
+		BaseURL: value.BaseURL, Auth: auth, AllowInsecureAuth: value.AllowInsecureAuth,
+	})
 	if err != nil {
 		return ProbeResult{}, err
 	}

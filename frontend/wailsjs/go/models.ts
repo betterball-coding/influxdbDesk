@@ -362,6 +362,7 @@ export namespace main {
 	    environment: string;
 	    authMode: string;
 	    username?: string;
+	    allowInsecureAuth: boolean;
 	    protectionMode: string;
 	    createdAt: string;
 	    updatedAt: string;
@@ -380,6 +381,7 @@ export namespace main {
 	        this.environment = source["environment"];
 	        this.authMode = source["authMode"];
 	        this.username = source["username"];
+	        this.allowInsecureAuth = source["allowInsecureAuth"];
 	        this.protectionMode = source["protectionMode"];
 	        this.createdAt = source["createdAt"];
 	        this.updatedAt = source["updatedAt"];
@@ -473,6 +475,7 @@ export namespace main {
 	    environment: string;
 	    authMode: string;
 	    username?: string;
+	    allowInsecureAuth: boolean;
 	    protectionMode: string;
 	    secret?: string;
 	
@@ -490,6 +493,7 @@ export namespace main {
 	        this.environment = source["environment"];
 	        this.authMode = source["authMode"];
 	        this.username = source["username"];
+	        this.allowInsecureAuth = source["allowInsecureAuth"];
 	        this.protectionMode = source["protectionMode"];
 	        this.secret = source["secret"];
 	    }
@@ -631,6 +635,7 @@ export namespace main {
 	    authMode: string;
 	    username?: string;
 	    secret?: string;
+	    allowInsecureAuth: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new TestConnectionInput(source);
@@ -642,6 +647,7 @@ export namespace main {
 	        this.authMode = source["authMode"];
 	        this.username = source["username"];
 	        this.secret = source["secret"];
+	        this.allowInsecureAuth = source["allowInsecureAuth"];
 	    }
 	}
 

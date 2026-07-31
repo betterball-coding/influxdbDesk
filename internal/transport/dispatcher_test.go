@@ -170,6 +170,39 @@ func TestNewDispatcherRejectsUnsafeURLs(t *testing.T) {
 	}
 }
 
+func TestNewDispatcherRequiresConsentForAuthenticatedRemoteHTTP(t *testing.T) {
+	t.Parallel()
+
+	auth := AuthConfig{Mode: AuthBasic, Username: "operator", Password: "secret"}
+	if _, err := NewDispatcher(Config{BaseURL: "http://192.0.2.10:8086", Auth: auth}); !errors.Is(err, ErrInvalidConfig) {
+		t.Fatalf("authenticated remote HTTP error = %v, want ErrInvalidConfig", err)
+	}
+	allowed, err := NewDispatcher(Config{
+		BaseURL: "http://192.0.2.10:8086", Auth: auth, AllowInsecureAuth: true,
+	})
+	if err != nil {
+		t.Fatalf("explicitly allowed authenticated HTTP error = %v", err)
+	}
+	allowed.CloseIdleConnections()
+
+	for _, baseURL := range []string{
+		"http://127.0.0.1:8086", "http://[::1]:8086", "http://localhost:8086", "https://influx.example.test:8086",
+	} {
+		dispatcher, err := NewDispatcher(Config{BaseURL: baseURL, Auth: auth})
+		if err != nil {
+			t.Errorf("safe authenticated endpoint %q error = %v", baseURL, err)
+			continue
+		}
+		dispatcher.CloseIdleConnections()
+	}
+
+	unauthenticated, err := NewDispatcher(Config{BaseURL: "http://192.0.2.10:8086"})
+	if err != nil {
+		t.Fatalf("unauthenticated HTTP error = %v", err)
+	}
+	unauthenticated.CloseIdleConnections()
+}
+
 func TestBeginRoundTripCrossesBarrierBeforeResponseHeaders(t *testing.T) {
 	entered := make(chan struct{})
 	release := make(chan struct{})

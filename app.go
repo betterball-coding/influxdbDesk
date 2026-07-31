@@ -62,37 +62,40 @@ type RuntimeStatus struct {
 }
 
 type SaveProfileInput struct {
-	ID               string              `json:"id,omitempty"`
-	ExpectedRevision string              `json:"expectedRevision,omitempty"`
-	Name             string              `json:"name"`
-	BaseURL          string              `json:"baseUrl"`
-	DefaultDatabase  string              `json:"defaultDatabase,omitempty"`
-	Environment      profile.Environment `json:"environment"`
-	AuthMode         transport.AuthMode  `json:"authMode"`
-	Username         string              `json:"username,omitempty"`
-	ProtectionMode   protection.Mode     `json:"protectionMode"`
-	Secret           *string             `json:"secret,omitempty"`
+	ID                string              `json:"id,omitempty"`
+	ExpectedRevision  string              `json:"expectedRevision,omitempty"`
+	Name              string              `json:"name"`
+	BaseURL           string              `json:"baseUrl"`
+	DefaultDatabase   string              `json:"defaultDatabase,omitempty"`
+	Environment       profile.Environment `json:"environment"`
+	AuthMode          transport.AuthMode  `json:"authMode"`
+	Username          string              `json:"username,omitempty"`
+	AllowInsecureAuth bool                `json:"allowInsecureAuth"`
+	ProtectionMode    protection.Mode     `json:"protectionMode"`
+	Secret            *string             `json:"secret,omitempty"`
 }
 
 type ProfileView struct {
-	ID              string              `json:"id"`
-	Revision        string              `json:"revision"`
-	Name            string              `json:"name"`
-	BaseURL         string              `json:"baseUrl"`
-	DefaultDatabase string              `json:"defaultDatabase"`
-	Environment     profile.Environment `json:"environment"`
-	AuthMode        transport.AuthMode  `json:"authMode"`
-	Username        string              `json:"username,omitempty"`
-	ProtectionMode  protection.Mode     `json:"protectionMode"`
-	CreatedAt       string              `json:"createdAt"`
-	UpdatedAt       string              `json:"updatedAt"`
+	ID                string              `json:"id"`
+	Revision          string              `json:"revision"`
+	Name              string              `json:"name"`
+	BaseURL           string              `json:"baseUrl"`
+	DefaultDatabase   string              `json:"defaultDatabase"`
+	Environment       profile.Environment `json:"environment"`
+	AuthMode          transport.AuthMode  `json:"authMode"`
+	Username          string              `json:"username,omitempty"`
+	AllowInsecureAuth bool                `json:"allowInsecureAuth"`
+	ProtectionMode    protection.Mode     `json:"protectionMode"`
+	CreatedAt         string              `json:"createdAt"`
+	UpdatedAt         string              `json:"updatedAt"`
 }
 
 type TestConnectionInput struct {
-	BaseURL  string             `json:"baseUrl"`
-	AuthMode transport.AuthMode `json:"authMode"`
-	Username string             `json:"username,omitempty"`
-	Secret   string             `json:"secret,omitempty"`
+	BaseURL           string             `json:"baseUrl"`
+	AuthMode          transport.AuthMode `json:"authMode"`
+	Username          string             `json:"username,omitempty"`
+	Secret            string             `json:"secret,omitempty"`
+	AllowInsecureAuth bool               `json:"allowInsecureAuth"`
 }
 
 type StartReadQueryInput struct {
@@ -441,7 +444,8 @@ func (a *App) SaveProfile(input SaveProfileInput) (ProfileView, error) {
 		ID: input.ID, ExpectedRevision: input.ExpectedRevision, Name: input.Name,
 		BaseURL: input.BaseURL, DefaultDatabase: input.DefaultDatabase,
 		Environment: input.Environment, AuthMode: input.AuthMode,
-		Username: input.Username, ProtectionMode: input.ProtectionMode,
+		Username: input.Username, AllowInsecureAuth: input.AllowInsecureAuth,
+		ProtectionMode: input.ProtectionMode,
 	}, Secret: input.Secret})
 	return profileView(value), err
 }
@@ -468,7 +472,9 @@ func (a *App) TestConnection(input TestConnectionInput) (connection.ProbeResult,
 	case transport.AuthBearer:
 		auth.Token = input.Secret
 	}
-	return connection.TestConfig(a.ctx, transport.Config{BaseURL: input.BaseURL, Auth: auth}, time.Now)
+	return connection.TestConfig(a.ctx, transport.Config{
+		BaseURL: input.BaseURL, Auth: auth, AllowInsecureAuth: input.AllowInsecureAuth,
+	}, time.Now)
 }
 
 func (a *App) TestSavedConnection(profileID string) (connection.ProbeResult, error) {
@@ -1596,7 +1602,8 @@ func profileView(value profile.Profile) ProfileView {
 		ID: value.ID, Revision: value.Revision, Name: value.Name, BaseURL: value.BaseURL,
 		DefaultDatabase: value.DefaultDatabase,
 		Environment:     value.Environment, AuthMode: value.AuthMode, Username: value.Username,
-		ProtectionMode: value.ProtectionMode, CreatedAt: value.CreatedAt, UpdatedAt: value.UpdatedAt,
+		AllowInsecureAuth: value.AllowInsecureAuth, ProtectionMode: value.ProtectionMode,
+		CreatedAt: value.CreatedAt, UpdatedAt: value.UpdatedAt,
 	}
 }
 

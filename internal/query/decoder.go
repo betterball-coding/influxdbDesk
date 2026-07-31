@@ -1,6 +1,8 @@
 package query
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
@@ -20,7 +22,12 @@ const (
 	ProtocolIncomplete        ProtocolErrorCode = "FAILED_INCOMPLETE_RESPONSE"
 	ProtocolStatementMismatch ProtocolErrorCode = "FAILED_PROTOCOL"
 	ProtocolResultStorage     ProtocolErrorCode = "FAILED_RESULT_STORAGE"
+	ProtocolChunkTooLarge     ProtocolErrorCode = "FAILED_RESPONSE_TOO_LARGE"
 )
+
+const DefaultMaxChunkBytes int64 = 64 * 1024 * 1024
+
+var errQueryChunkTooLarge = errors.New("query response chunk exceeds limit")
 
 // DecodeError separates a safe local message from transient server text.
 type DecodeError struct {
@@ -46,6 +53,9 @@ type StatementSpec struct {
 type DecodeConfig struct {
 	Statements []StatementSpec
 	Resolver   NumericKindResolver
+	// MaxChunkBytes limits one top-level InfluxDB JSON object before it is
+	// decoded. Zero selects DefaultMaxChunkBytes.
+	MaxChunkBytes int64
 	// OnChunkDecoded runs only after one complete chunk has passed the
 	// structural and scalar checks above. Export callers use it to refresh an
 	// idle deadline without treating arbitrary response bytes as progress.
@@ -115,14 +125,17 @@ type statementDecodeState struct {
 	closed bool
 }
 
-// DecodeChunked consumes consecutive InfluxDB chunk objects. UseNumber is set
-// before the first Decode, preserving every wire numeric token exactly.
+// DecodeChunked consumes consecutive InfluxDB chunk objects. Each top-level
+// object is framed by JSON structure and bounded before UseNumber decoding.
 func DecodeChunked(reader io.Reader, config DecodeConfig) (*ResultSet, error) {
 	if reader == nil || len(config.Statements) == 0 {
 		return nil, protocolError(ProtocolInvalidJSON, "查询响应解码配置无效", "", nil)
 	}
-	decoder := json.NewDecoder(reader)
-	decoder.UseNumber()
+	maximumChunkBytes := config.MaxChunkBytes
+	if maximumChunkBytes <= 0 {
+		maximumChunkBytes = DefaultMaxChunkBytes
+	}
+	framed := bufio.NewReaderSize(reader, 64*1024)
 
 	resultSet := &ResultSet{
 		Statements:         make([]StatementResult, len(config.Statements)),
@@ -135,11 +148,20 @@ func DecodeChunked(reader io.Reader, config DecodeConfig) (*ResultSet, error) {
 
 	currentStatement := -1
 	for {
-		var envelope rawEnvelope
-		err := decoder.Decode(&envelope)
+		encoded, err := readBoundedJSONObject(framed, maximumChunkBytes)
 		if errors.Is(err, io.EOF) {
 			break
 		}
+		if errors.Is(err, errQueryChunkTooLarge) {
+			return nil, protocolError(ProtocolChunkTooLarge, "InfluxDB 返回的单个查询分块过大", "", err)
+		}
+		if err != nil {
+			return nil, protocolError(ProtocolInvalidJSON, "InfluxDB 返回了无效 JSON", "", err)
+		}
+		var envelope rawEnvelope
+		decoder := json.NewDecoder(bytes.NewReader(encoded))
+		decoder.UseNumber()
+		err = decoder.Decode(&envelope)
 		if err != nil {
 			return nil, protocolError(ProtocolInvalidJSON, "InfluxDB 返回了无效 JSON", "", err)
 		}
@@ -232,6 +254,79 @@ func DecodeChunked(reader io.Reader, config DecodeConfig) (*ResultSet, error) {
 		resultSet.Statements[i].seriesIndex = nil
 	}
 	return resultSet, nil
+}
+
+func readBoundedJSONObject(reader *bufio.Reader, maximum int64) ([]byte, error) {
+	var consumed int64
+	readByte := func() (byte, error) {
+		value, err := reader.ReadByte()
+		if err != nil {
+			return 0, err
+		}
+		consumed++
+		if consumed > maximum {
+			return 0, errQueryChunkTooLarge
+		}
+		return value, nil
+	}
+
+	var first byte
+	for {
+		value, err := readByte()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil, io.EOF
+			}
+			return nil, err
+		}
+		if value != ' ' && value != '\t' && value != '\r' && value != '\n' {
+			first = value
+			break
+		}
+	}
+	if first != '{' {
+		return nil, errors.New("query response chunk is not a JSON object")
+	}
+
+	capacity := int64(64 * 1024)
+	if maximum < capacity {
+		capacity = maximum
+	}
+	encoded := make([]byte, 1, int(capacity))
+	encoded[0] = first
+	depth := 1
+	inString := false
+	escaped := false
+	for depth > 0 {
+		value, err := readByte()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil, io.ErrUnexpectedEOF
+			}
+			return nil, err
+		}
+		encoded = append(encoded, value)
+		if inString {
+			switch {
+			case escaped:
+				escaped = false
+			case value == '\\':
+				escaped = true
+			case value == '"':
+				inString = false
+			}
+			continue
+		}
+		switch value {
+		case '"':
+			inString = true
+		case '{', '[':
+			depth++
+		case '}', ']':
+			depth--
+		}
+	}
+	return encoded, nil
 }
 
 func appendSeries(

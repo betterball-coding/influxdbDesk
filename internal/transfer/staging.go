@@ -15,6 +15,7 @@ import (
 
 const (
 	StageCanonicalPointLimitBytes int64 = 5 * 1024 * 1024
+	StageCSVRecordLimitBytes      int64 = StageCanonicalPointLimitBytes * 2
 	StageGzipLimitBytes           int64 = 20 * 1024 * 1024 * 1024
 )
 
@@ -75,6 +76,7 @@ type StageImportRequest struct {
 
 	// Tests and constrained callers may lower, but never raise, these limits.
 	GzipUncompressedLimitBytes int64
+	CSVRecordLimitBytes        int64
 	ReservationUnitBytes       int64
 }
 
@@ -127,7 +129,11 @@ func StageImport(ctx context.Context, request StageImportRequest) (StageImportRe
 		if request.CSVMapping == nil {
 			err = ErrStageCSVMappingRequired
 		} else {
-			err = processor.processCSV(ctx, hashedSource, *request.CSVMapping)
+			maximumRecordBytes := request.CSVRecordLimitBytes
+			if maximumRecordBytes <= 0 || maximumRecordBytes > StageCSVRecordLimitBytes {
+				maximumRecordBytes = StageCSVRecordLimitBytes
+			}
+			err = processor.processCSV(ctx, hashedSource, *request.CSVMapping, int(maximumRecordBytes))
 			if err != nil && !isSafeStageError(err) {
 				err = ErrStageRead
 			}

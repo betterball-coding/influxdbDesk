@@ -24,6 +24,7 @@ var migrations = []migration{
 	{version: 11, sql: schemaV11},
 	{version: 12, sql: schemaV12},
 	{version: 13, sql: schemaV13},
+	{version: 14, sql: schemaV14},
 }
 
 func (s *Store) migrate(ctx context.Context) error {
@@ -566,4 +567,9 @@ ALTER TABLE import_preflight_details ADD COLUMN target_retention_policy TEXT;
 
 const schemaV13 = `
 ALTER TABLE profiles ADD COLUMN default_database TEXT NOT NULL DEFAULT '';
+`
+
+const schemaV14 = `
+ALTER TABLE profiles ADD COLUMN allow_insecure_auth INTEGER NOT NULL DEFAULT 0
+    CHECK (allow_insecure_auth IN (0, 1));
 `

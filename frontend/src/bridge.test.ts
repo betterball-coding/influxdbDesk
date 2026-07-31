@@ -87,6 +87,7 @@ describe('native bridge', () => {
             environment: 'production',
             authMode: 'BASIC',
             username: 'operator',
+            allowInsecureAuth: false,
             protectionMode: 'ProtectedLocked',
             credentialRef: 'must-not-cross-ui-boundary',
           }])),
@@ -104,6 +105,7 @@ describe('native bridge', () => {
       authMode: 'BASIC',
       environment: 'production',
       username: 'operator',
+      allowInsecureAuth: false,
       protectionMode: 'ProtectedLocked',
       state: 'disconnected',
     }])
@@ -112,7 +114,7 @@ describe('native bridge', () => {
 
   it('saves direct connection fields with automatic Basic authentication', async () => {
     const saveProfile = vi.fn(async (input: unknown) => {
-      const value = input as Record<string, string | undefined>
+      const value = input as Record<string, string | boolean | undefined>
       return {
         id: value.id ?? 'profile-new',
         revision: value.expectedRevision ? '8' : '1',
@@ -122,6 +124,7 @@ describe('native bridge', () => {
         environment: value.environment,
         authMode: value.authMode,
         username: value.username,
+        allowInsecureAuth: value.allowInsecureAuth,
         protectionMode: value.protectionMode,
       }
     })
@@ -136,6 +139,7 @@ describe('native bridge', () => {
       username: 'operator',
       environment: 'production',
       authMode: 'BASIC',
+      allowInsecureAuth: true,
       protectionMode: 'ProtectedLocked',
     })
 
@@ -148,6 +152,7 @@ describe('native bridge', () => {
       environment: 'production',
       authMode: 'BASIC',
       username: 'operator',
+      allowInsecureAuth: true,
       protectionMode: 'ProtectedLocked',
       secret: undefined,
     })
@@ -173,7 +178,7 @@ describe('native bridge', () => {
     const saveProfile = vi.fn(async () => ({
       id: 'profile-1', revision: '8', name: 'Data engine',
       baseUrl: 'http://192.168.2.6:8086', defaultDatabase: 'data_engine',
-      environment: 'production', authMode: 'BASIC', username: 'operator',
+      environment: 'production', authMode: 'BASIC', username: 'operator', allowInsecureAuth: true,
       protectionMode: 'ProtectedLocked',
     }))
     const openConnection = vi.fn(async () => ({
@@ -217,7 +222,7 @@ describe('native bridge', () => {
     await expect(useWorkbenchStore.getState().saveConnection({
       id: 'profile-1', expectedRevision: '7', name: 'Data engine',
       baseUrl: 'http://192.168.2.6:8086', defaultDatabase: 'data_engine',
-      username: 'operator', authMode: 'BASIC', environment: 'production',
+      username: 'operator', authMode: 'BASIC', environment: 'production', allowInsecureAuth: true,
       protectionMode: 'ProtectedLocked',
     })).resolves.toBe(true)
 
