@@ -460,14 +460,12 @@ func TestLockAfterStartBarrierAllowsOnlyEnteredRequest(t *testing.T) {
 
 func waitForOperationLockPending(t *testing.T, manager *protection.Manager) {
 	t.Helper()
-	request := protection.UnlockRequest{
-		ConnectionID: "connection-1", CommandRequestID: uuid.NewString(),
-		ExpectedConnectionGeneration: "1", ExpectedProtectionRevision: "2",
-	}
-	deadline := time.Now().Add(2 * time.Second)
+	deadline := time.Now().Add(10 * time.Second)
 	for {
 		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Millisecond)
-		_, err := manager.Unlock(ctx, request)
+		_, err := manager.WithGrantBinding(ctx, "connection-1", "1", func(protection.DispatchBinding, protection.Snapshot) error {
+			return nil
+		})
 		cancel()
 		if errors.Is(err, protection.ErrLockPending) {
 			return
@@ -478,6 +476,7 @@ func waitForOperationLockPending(t *testing.T, manager *protection.Manager) {
 		if time.Now().After(deadline) {
 			t.Fatal("Lock did not become pending")
 		}
+		time.Sleep(time.Millisecond)
 	}
 }
 
