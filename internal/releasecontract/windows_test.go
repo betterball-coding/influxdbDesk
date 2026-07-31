@@ -15,6 +15,13 @@ const stableUpgradeCode = "{7F456FFB-A2DC-49D2-AF8C-F6438070B516}"
 func TestWiXProductionContract(t *testing.T) {
 	root := repositoryRoot(t)
 	wxs := read(t, filepath.Join(root, "build", "windows", "wix", "Package.wxs"))
+	wixProject := read(t, filepath.Join(root, "build", "windows", "wix", "InfluxDesk.wixproj"))
+	if !strings.Contains(wixProject, `WixToolset.Sdk/6.0.2`) {
+		t.Error("WiX SDK must remain pinned to the pre-OSMF 6.0.2 toolchain")
+	}
+	if strings.Contains(wixProject, `WixToolset.Sdk/7.`) {
+		t.Error("WiX 7 requires explicit OSMF EULA acceptance and must not be used implicitly")
+	}
 	decoder := xml.NewDecoder(strings.NewReader(wxs))
 	for {
 		_, err := decoder.Token()

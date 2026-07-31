@@ -71,7 +71,7 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:SIGN_COMMAND)) { throw 'SIGN_COMMAND is required.' }
           & powershell -NoProfile -Command ($env:SIGN_COMMAND -replace '\{file\}', 'build\bin\InfluxDesk.exe')
 
-      - name: Build WiX 7 MSI
+      - name: Build WiX 6 MSI
         run: dotnet build .\build\windows\wix\InfluxDesk.wixproj -c Release -p:ProductVersion=${{ inputs.version }} -p:SourceDir="$pwd\build\bin"
 
       - name: Locate MSI

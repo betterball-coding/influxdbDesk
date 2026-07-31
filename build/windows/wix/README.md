@@ -2,7 +2,7 @@
 
 This project builds the Windows 11 x64 MSI. The Windows 10 release uses the separate NSIS package because that package carries the WebView2 bootstrapper.
 
-Build on Windows with .NET 8 and WiX 7:
+Build on Windows with .NET 8 and WiX 6.0.2:
 
 ```powershell
 dotnet build .\build\windows\wix\InfluxDesk.wixproj `

@@ -61,7 +61,7 @@
 
 - SQLite WAL/FULL、Credential Manager 引用、DPAPI/AES-GCM、受保护 DACL root、reparse 拒绝和 secret-free 日志/事件边界已有代码及可在当前环境运行的测试。
 - Ed25519 manifest 原始字节验签、HTTPS/版本/平台约束、MSI length/SHA-256 校验、内置 channel key 和 Authenticode 发布检查已实现。
-- WiX 7 x64 per-machine 工程和 Windows release workflow 已入库；它们仍需真实 Windows、证书和安装生命周期执行，不能据此宣称 MSI 已发布。
+- WiX 6.0.2 x64 per-machine 工程和 Windows release workflow 已入库；它们仍需真实 Windows、证书和安装生命周期执行，不能据此宣称 MSI 已发布。
 - macOS 已接入 `~/Library/Application Support/InfluxDesk` 私有目录、Keychain Services、标准 Cocoa 标题栏与菜单、Command 快捷键、固定 bundle identifier，以及 arm64/amd64 universal `.app`、ZIP、DMG 构建脚本和 CI 契约。
 
 ## 已知限制与剩余工作
