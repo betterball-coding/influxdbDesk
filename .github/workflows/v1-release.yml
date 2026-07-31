@@ -132,7 +132,7 @@ jobs:
             -c Release `
             -p:ProductVersion=$env:RELEASE_VERSION `
             -p:SourceDir="$pwd\build\bin"
-          $msi = Get-ChildItem .\build\windows\wix\bin\Release -Filter *.msi -Recurse | Select-Object -First 1
+          $msi = Get-ChildItem .\build\windows\wix\bin -Filter *.msi -Recurse | Select-Object -First 1
           if ($null -eq $msi) { throw 'Win11 WiX build did not create an MSI.' }
           $installer = New-Object -ComObject WindowsInstaller.Installer
           $database = $installer.OpenDatabase($msi.FullName, 0)

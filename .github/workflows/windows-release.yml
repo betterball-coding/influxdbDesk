@@ -78,7 +78,7 @@ jobs:
         id: locate-msi
         shell: pwsh
         run: |
-          $msi = Get-ChildItem .\build\windows\wix\bin\Release -Filter *.msi -Recurse | Select-Object -First 1
+          $msi = Get-ChildItem .\build\windows\wix\bin -Filter *.msi -Recurse | Select-Object -First 1
           if ($null -eq $msi) { throw 'WiX completed without producing an MSI.' }
           "path=$($msi.FullName)" >> $env:GITHUB_OUTPUT
 

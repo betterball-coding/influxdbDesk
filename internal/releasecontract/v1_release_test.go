@@ -18,6 +18,7 @@ func TestV1ReleaseWorkflowBuildsDistinctNativePackages(t *testing.T) {
 		"InfluxDesk-${{ inputs.version || '1.0.0' }}-windows-installers",
 		"win10-x64-installer.exe",
 		"win11-x64-installer.msi",
+		`Get-ChildItem .\build\windows\wix\bin -Filter *.msi -Recurse`,
 		"build-macos.sh universal",
 		"macos-universal.dmg",
 		"macos-universal.zip",

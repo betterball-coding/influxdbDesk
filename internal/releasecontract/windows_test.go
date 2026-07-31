@@ -112,6 +112,7 @@ func TestReleaseWorkflowRequiresRealSignedArtifacts(t *testing.T) {
 	workflow := read(t, filepath.Join(repositoryRoot(t), ".github", "workflows", "windows-release.yml"))
 	for _, required := range []string{
 		"steps.locate-msi.outputs.path",
+		`Get-ChildItem .\build\windows\wix\bin -Filter *.msi -Recurse`,
 		"release/manifest.json",
 		"release/manifest.sig",
 		"if-no-files-found: error",
