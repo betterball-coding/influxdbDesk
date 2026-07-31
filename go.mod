@@ -9,7 +9,7 @@ require (
 	github.com/influxdata/influxql v1.4.1
 	github.com/wailsapp/wails/v2 v2.13.0
 	golang.org/x/sys v0.47.0
-	modernc.org/sqlite v1.54.0
+	modernc.org/sqlite v1.55.0
 )
 
 require (
