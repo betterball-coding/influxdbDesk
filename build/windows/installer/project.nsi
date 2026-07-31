@@ -32,7 +32,73 @@ Unicode true
 ####
 ## Include the wails tools
 ####
+!define WAILS_WIN10_REQUIRED "InfluxDesk 需要 Windows 10 x64 或更高版本。"
+!define WAILS_ARCHITECTURE_NOT_SUPPORTED "此安装包仅支持 x64（amd64）Windows。"
+!define INFLUXDESK_MIN_WINDOWS_BUILD 16299
+!define INFLUXDESK_WINDOWS_BUILD_REQUIRED "InfluxDesk 技术最低要求为 Windows 10 1709 x64（build 16299）；推荐使用 Windows 10 22H2（build 19045）。"
+!define INFLUXDESK_MIN_WEBVIEW2_VERSION "94.0.992.31"
+!define INFLUXDESK_WEBVIEW2_DETAIL "正在安装或更新 Microsoft Edge WebView2 Runtime"
+!define INFLUXDESK_WEBVIEW2_FAILED "WebView2 Runtime 安装或更新失败。请检查网络和管理员策略后重试。"
+
 !include "wails_tools.nsh"
+!include "WordFunc.nsh"
+
+!macro influxdesk.readWebView2Version output
+    SetRegView 64
+    ClearErrors
+    ReadRegStr ${output} HKLM "SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
+    ${If} ${output} == ""
+        ReadRegStr ${output} HKCU "Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
+    ${EndIf}
+!macroend
+
+!macro influxdesk.webview2runtime
+    !insertmacro influxdesk.readWebView2Version $0
+    ${If} $0 != ""
+        ${VersionCompare} "$0" "${INFLUXDESK_MIN_WEBVIEW2_VERSION}" $1
+        ${If} $1 != 2
+            Goto influxdesk_webview2_ready
+        ${EndIf}
+    ${EndIf}
+
+    SetDetailsPrint both
+    DetailPrint "${INFLUXDESK_WEBVIEW2_DETAIL}"
+    SetDetailsPrint listonly
+    InitPluginsDir
+    CreateDirectory "$pluginsdir\webview2bootstrapper"
+    SetOutPath "$pluginsdir\webview2bootstrapper"
+    File "tmp\MicrosoftEdgeWebview2Setup.exe"
+    ExecWait '"$pluginsdir\webview2bootstrapper\MicrosoftEdgeWebview2Setup.exe" /silent /install' $1
+    ${If} $1 != 0
+        IfSilent +2 0
+        MessageBox MB_ICONSTOP|MB_OK "${INFLUXDESK_WEBVIEW2_FAILED}（错误码：$1）"
+        SetErrorLevel 66
+        Abort
+    ${EndIf}
+
+    !insertmacro influxdesk.readWebView2Version $0
+    ${If} $0 != ""
+        ${VersionCompare} "$0" "${INFLUXDESK_MIN_WEBVIEW2_VERSION}" $1
+        ${If} $1 != 2
+            Goto influxdesk_webview2_ready
+        ${EndIf}
+    ${EndIf}
+    IfSilent +2 0
+    MessageBox MB_ICONSTOP|MB_OK "${INFLUXDESK_WEBVIEW2_FAILED}"
+    SetErrorLevel 66
+    Abort
+
+    influxdesk_webview2_ready:
+!macroend
+
+!macro influxdesk.checkMinimumWindowsBuild
+    ${IfNot} ${AtLeastBuild} ${INFLUXDESK_MIN_WINDOWS_BUILD}
+        IfSilent +2 0
+        MessageBox MB_ICONSTOP|MB_OK "${INFLUXDESK_WINDOWS_BUILD_REQUIRED}"
+        SetErrorLevel 64
+        Abort
+    ${EndIf}
+!macroend
 
 # The version information for this two must consist of 4 parts
 VIProductVersion "${INFO_PRODUCTVERSION}.0"
@@ -64,14 +130,14 @@ ManifestDPIAware true
 
 !insertmacro MUI_UNPAGE_INSTFILES # Uinstalling page
 
-!insertmacro MUI_LANGUAGE "English" # Set the Language of the installer
+!insertmacro MUI_LANGUAGE "SimpChinese" # Set the Language of the installer
 
 ## The following two statements can be used to sign the installer and the uninstaller. The path to the binaries are provided in %1
 #!uninstfinalize 'signtool --file "%1"'
 #!finalize 'signtool --file "%1"'
 
 Name "${INFO_PRODUCTNAME}"
-OutFile "..\..\bin\${INFO_PROJECTNAME}-${ARCH}-installer.exe" # Name of the installer's file.
+OutFile "..\..\bin\${INFO_PROJECTNAME}-${INFO_PRODUCTVERSION}-win10-x64-installer.exe"
 !ifdef WAILS_INSTALL_SCOPE
   !if "${WAILS_INSTALL_SCOPE}" == "user"
     InstallDir "$LOCALAPPDATA\Programs\${INFO_PRODUCTNAME}"
@@ -84,13 +150,14 @@ OutFile "..\..\bin\${INFO_PROJECTNAME}-${ARCH}-installer.exe" # Name of the inst
 ShowInstDetails show # This will always show the installation details.
 
 Function .onInit
-   !insertmacro wails.checkArchitecture
+    !insertmacro wails.checkArchitecture
+    !insertmacro influxdesk.checkMinimumWindowsBuild
 FunctionEnd
 
 Section
     !insertmacro wails.setShellContext
 
-    !insertmacro wails.webview2runtime
+    !insertmacro influxdesk.webview2runtime
 
     SetOutPath $INSTDIR
 

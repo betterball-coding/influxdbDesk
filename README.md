@@ -18,7 +18,7 @@
 
 <p align="center">
   <a href="https://github.com/betterball-coding/influxdbDesk/actions/workflows/ci.yml"><img src="https://github.com/betterball-coding/influxdbDesk/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
-  <img src="https://img.shields.io/badge/platform-Windows%2011-0078D4" alt="Windows 11">
+  <img src="https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4" alt="Windows 10 and 11">
   <img src="https://img.shields.io/badge/platform-macOS%2012%2B-111111" alt="macOS 12 or later">
   <img src="https://img.shields.io/badge/InfluxDB-1.x-22ADF6" alt="InfluxDB 1.x">
   <img src="https://img.shields.io/badge/InfluxQL-supported-00897B" alt="InfluxQL supported">
@@ -54,7 +54,7 @@ InfluxDesk 是一个专注于 InfluxDB 1.x 的中文桌面工作台。它把连�
 
 ## 下载
 
-当前版本为 [v0.1.0 预发布版](https://github.com/betterball-coding/influxdbDesk/releases/tag/v0.1.0)，面向 Windows 11 x64：
+当前版本为 [v0.1.0 预发布版](https://github.com/betterball-coding/influxdbDesk/releases/tag/v0.1.0)，面向 Windows 10/11 x64：
 
 | 文件 | 用途 |
 | --- | --- |
@@ -67,8 +67,9 @@ InfluxDesk 是一个专注于 InfluxDB 1.x 的中文桌面工作台。它把连�
 
 ### 系统要求
 
-- Windows 11 x64，建议 23H2 或 24H2。
-- Microsoft Edge WebView2 Evergreen Runtime。
+- Windows 10/11 x64；首要支持基线为 Windows 10 22H2（build 19045）。
+- 技术最低版本为 Windows 10 1709 x64（build 16299），安装器会拒绝更早版本。早于 22H2 的 SAC 版本已停止服务且未做实机验收，不作为推荐环境。
+- Microsoft Edge WebView2 Evergreen Runtime 94.0.992.31 或更高版本。Win10 安装包会在缺失或版本过旧时通过 Microsoft bootstrapper 联网安装；应用启动时也会进行版本检查并显示中文处理提示。
 - macOS 12 或更高版本，支持 Apple Silicon 和 Intel，使用系统 WKWebView。
 - InfluxDB OSS 1.8.10 或 1.12.4；1.7.10 作为兼容性目标。
 - 仅支持 InfluxQL 和 InfluxDB 1.x HTTP API，不支持 Flux、SQL、InfluxDB 2.x/3.x。
@@ -105,6 +106,12 @@ cd ..
 go test ./...
 go vet ./...
 wails build -platform windows/amd64 -clean -m -nopackage -webview2 error -nocolour
+```
+
+Windows 10 x64 安装包使用内嵌 WebView2 bootstrapper 的固定构建入口，避免 Win10 设备缺少运行时：
+
+```bash
+./scripts/build-win10.sh
 ```
 
 macOS 必须在真实 Mac 上构建：

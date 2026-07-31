@@ -68,7 +68,7 @@
 
 以下项目仍是 PLAN 39 发布或完整产品范围的缺口：
 
-- **Windows 与 MSI 实测**：在干净 Windows 11 Enterprise 23H2/24H2 VM 上执行 WebView2、Credential Manager、DPAPI、DACL、Wails IPC/CDP、EXE/MSI 签名、WiX 安装、升级、回滚和卸载门禁。
+- **Windows 与 MSI 实测**：在干净 Windows 10 Enterprise 22H2 x64（build 19045）和 Windows 11 VM 上执行 WebView2 缺失/过旧、Credential Manager、DPAPI、DACL、Wails IPC/CDP、EXE/MSI 签名、WiX/NSIS 安装、升级、回滚和卸载门禁。
 - **macOS 原生与发布实测**：需在真实 Apple Silicon 与 Intel Mac 上执行 WKWebView、Cocoa 菜单/文件对话框、Keychain ACL、睡眠恢复、Gatekeeper、Developer ID、notarytool、stapling、DMG 安装和升级验收；当前工作流只上传 ad-hoc 签名包。
 - **FINALIZING 恢复优化**：Export 在 rename 已成功但 COMPLETE 事务未提交的崩溃点，尚需启动时直接复验最终文件并补写 COMPLETE；当前恢复保守地暂停并要求 Restart/重新协调。
 - **真正逐 chunk 大导出**：当前一个 quantum 会先完整解码受限响应再写 artifact，尚不是将每个合法 chunk 持续写入 `.part` 的端到端大数据流；仍受单 quantum 响应上限约束。
