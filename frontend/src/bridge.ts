@@ -35,6 +35,19 @@ import type {
 
 type WailsMethod = (...args: unknown[]) => Promise<unknown>
 type QueryStartedHandler = (sessionId: string, stateRevision: string) => void
+export type AppCommand =
+  | 'NEW_QUERY'
+  | 'EXECUTE_QUERY'
+  | 'SHOW_QUERY'
+  | 'SHOW_CONNECTIONS'
+  | 'SHOW_TASKS'
+  | 'SHOW_SETTINGS'
+
+export interface RuntimePlatform {
+  os: string
+  arch: string
+  primaryModifier: 'Command' | 'Ctrl'
+}
 
 declare global {
   interface Window {
@@ -439,6 +452,32 @@ export const bridge = {
       listener(event as TaskEvent)
     }, -1)
     return typeof unsubscribe === 'function' ? unsubscribe : () => undefined
+  },
+
+  subscribeAppCommands(listener: (command: AppCommand) => void): () => void {
+    if (!this.isNative()) return () => undefined
+    const runtime = window.runtime
+    if (!runtime?.EventsOnMultiple) throw new Error('APP_COMMAND_RUNTIME_UNAVAILABLE')
+    const unsubscribe = runtime.EventsOnMultiple('app.command.v1', (command) => {
+      if (
+        command === 'NEW_QUERY' || command === 'EXECUTE_QUERY' || command === 'SHOW_QUERY' ||
+        command === 'SHOW_CONNECTIONS' || command === 'SHOW_TASKS' || command === 'SHOW_SETTINGS'
+      ) {
+        listener(command)
+      }
+    }, -1)
+    return typeof unsubscribe === 'function' ? unsubscribe : () => undefined
+  },
+
+  async getRuntimePlatform(): Promise<RuntimePlatform> {
+    const native = method('GetRuntimePlatform')
+    if (native) return (await native()) as RuntimePlatform
+    const macOS = /Mac|iPhone|iPad|iPod/.test(navigator.platform)
+    return {
+      os: macOS ? 'darwin' : 'browser',
+      arch: 'browser',
+      primaryModifier: macOS ? 'Command' : 'Ctrl',
+    }
   },
 
   async getTaskEventHead(): Promise<string> {

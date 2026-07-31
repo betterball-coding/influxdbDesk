@@ -14,7 +14,15 @@ var assets embed.FS
 func main() {
 	app := NewApp()
 
-	err := wails.Run(&options.App{
+	err := wails.Run(applicationOptions(app))
+
+	if err != nil {
+		println("Error:", err.Error())
+	}
+}
+
+func applicationOptions(app *App) *options.App {
+	result := &options.App{
 		Title:     "InfluxDesk",
 		Width:     1440,
 		Height:    900,
@@ -29,9 +37,7 @@ func main() {
 		Bind: []interface{}{
 			app,
 		},
-	})
-
-	if err != nil {
-		println("Error:", err.Error())
 	}
+	configurePlatform(result, app)
+	return result
 }

@@ -1074,3 +1074,15 @@ func TestQueryResultPageViewMatchesWailsWireContract(t *testing.T) {
 		t.Fatalf("unexpected Wails result page: %s", encoded)
 	}
 }
+
+func TestQueryResultCSVFilenameUsesPlatformRules(t *testing.T) {
+	if got := queryResultCSVFilenameForPlatform(`cpu<load>\host`, "windows"); got != "cpu_load__host.csv" {
+		t.Fatalf("unexpected Windows filename %q", got)
+	}
+	if got := queryResultCSVFilenameForPlatform(`cpu<load>\host`, "darwin"); got != `cpu<load>\host.csv` {
+		t.Fatalf("unexpected macOS filename %q", got)
+	}
+	if got := queryResultCSVFilenameForPlatform("cpu:load", "darwin"); got != "cpu_load.csv" {
+		t.Fatalf("unexpected macOS colon handling %q", got)
+	}
+}

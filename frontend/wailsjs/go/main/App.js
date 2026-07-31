@@ -82,6 +82,10 @@ export function GetResultPage(arg1) {
   return window['go']['main']['App']['GetResultPage'](arg1);
 }
 
+export function GetRuntimePlatform() {
+  return window['go']['main']['App']['GetRuntimePlatform']();
+}
+
 export function GetRuntimeStatus() {
   return window['go']['main']['App']['GetRuntimeStatus']();
 }

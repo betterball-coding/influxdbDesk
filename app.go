@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -59,6 +60,12 @@ type App struct {
 type RuntimeStatus struct {
 	Ready       bool   `json:"ready"`
 	StartupCode string `json:"startupCode,omitempty"`
+}
+
+type RuntimePlatform struct {
+	OS              string `json:"os"`
+	Arch            string `json:"arch"`
+	PrimaryModifier string `json:"primaryModifier"`
 }
 
 type SaveProfileInput struct {
@@ -407,6 +414,14 @@ func (a *App) GetRuntimeStatus() RuntimeStatus {
 	return RuntimeStatus{Ready: a.ready, StartupCode: a.startupCode}
 }
 
+func (a *App) GetRuntimePlatform() RuntimePlatform {
+	modifier := "Ctrl"
+	if goruntime.GOOS == "darwin" {
+		modifier = "Command"
+	}
+	return RuntimePlatform{OS: goruntime.GOOS, Arch: goruntime.GOARCH, PrimaryModifier: modifier}
+}
+
 func (a *App) ListProfiles() ([]ProfileView, error) {
 	profiles, _, _, err := a.services()
 	if err != nil {
@@ -708,12 +723,22 @@ func queryResultCSVRequest(input ExportQueryResultInput) (query.CSVExportRequest
 }
 
 func queryResultCSVFilename(suggested string) string {
+	return queryResultCSVFilenameForPlatform(suggested, goruntime.GOOS)
+}
+
+func queryResultCSVFilenameForPlatform(suggested, goos string) string {
 	name := strings.TrimSpace(filepath.Base(suggested))
 	if name == "" || name == "." {
 		name = "query-result"
 	}
 	name = strings.Map(func(value rune) rune {
-		if value < 32 || strings.ContainsRune(`<>:"/\\|?*`, value) {
+		invalid := value < 32 || value == '/'
+		if goos == "windows" {
+			invalid = invalid || strings.ContainsRune(`<>:"\\|?*`, value)
+		} else if goos == "darwin" {
+			invalid = invalid || value == ':'
+		}
+		if invalid {
 			return '_'
 		}
 		return value

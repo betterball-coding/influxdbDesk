@@ -50,6 +50,8 @@ export function GetQuerySession(arg1:string):Promise<query.QuerySession>;
 
 export function GetResultPage(arg1:query.PageRequest):Promise<main.QueryResultPageView>;
 
+export function GetRuntimePlatform():Promise<main.RuntimePlatform>;
+
 export function GetRuntimeStatus():Promise<main.RuntimeStatus>;
 
 export function GetSchemaSnapshot(arg1:string):Promise<Array<main.SchemaDatabase>>;

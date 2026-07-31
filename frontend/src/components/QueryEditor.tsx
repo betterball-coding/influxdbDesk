@@ -18,6 +18,8 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 // @ts-expect-error See the comment above.
 import * as monaco from 'monaco-editor/editor/editor.api'
 import EditorWorker from 'monaco-editor/editor/editor.worker?worker'
+import { bridge } from '../bridge'
+import { primaryShortcutLabel } from '../platform'
 import { useWorkbenchStore } from '../store'
 import { IconButton } from './IconButton'
 
@@ -275,6 +277,7 @@ export function QueryEditor() {
   const toggleProtection = useWorkbenchStore((state) => state.toggleProtection)
   const theme = useWorkbenchStore((state) => state.theme)
   const editorRef = useRef<MonacoSurfaceHandle>(null)
+  const [shortcutModifier, setShortcutModifier] = useState(() => primaryShortcutLabel())
   const [cursor, setCursor] = useState({ line: 1, column: 1 })
   const [history, setHistory] = useState<EditorHistoryState>({ canUndo: false, canRedo: false })
   const [retentionPolicyByDatabase, setRetentionPolicyByDatabase] = useState<Record<string, string>>({})
@@ -286,6 +289,14 @@ export function QueryEditor() {
   const selectedRetentionPolicy = retentionPolicies.includes(retentionPolicyByDatabase[activeTab.database])
     ? retentionPolicyByDatabase[activeTab.database]
     : retentionPolicies[0] ?? ''
+
+  useEffect(() => {
+    let active = true
+    void bridge.getRuntimePlatform().then((platform) => {
+      if (active) setShortcutModifier(platform.primaryModifier === 'Command' ? '⌘' : 'Ctrl')
+    }).catch(() => undefined)
+    return () => { active = false }
+  }, [])
 
   return (
     <section className="query-editor" aria-label="InfluxQL 编辑器">
@@ -316,7 +327,7 @@ export function QueryEditor() {
           {queryState === 'running' ? (
             <button className="command-button command-button--danger" onClick={() => void cancelQuery()}><Square size={14} fill="currentColor" /> 停止</button>
           ) : (
-            <button className="command-button command-button--primary" onClick={() => void executeQuery()}><Play size={15} fill="currentColor" /> 执行<kbd>Ctrl ↵</kbd></button>
+            <button className="command-button command-button--primary" onClick={() => void executeQuery()}><Play size={15} fill="currentColor" /> 执行<kbd>{shortcutModifier} ↵</kbd></button>
           )}
           <span className="toolbar-separator" />
           <button className="toolbar-button" onClick={() => editorRef.current?.replaceValue(formatInfluxQL(activeTab.query))}><AlignLeft size={14} /> 格式化</button>

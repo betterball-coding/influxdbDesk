@@ -22,7 +22,7 @@ const (
 var (
 	ErrInvalidReference = errors.New("invalid credential reference")
 	ErrNotFound         = errors.New("credential not found")
-	ErrUnavailable      = errors.New("Windows Credential Manager is unavailable")
+	ErrUnavailable      = errors.New("platform credential store is unavailable")
 )
 
 var supportedKinds = []Kind{

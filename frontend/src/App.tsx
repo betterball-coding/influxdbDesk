@@ -10,6 +10,7 @@ import { SettingsPage } from './components/SettingsPage'
 import { StatusBar } from './components/StatusBar'
 import { TaskDrawer } from './components/TaskDrawer'
 import { TransferPanel } from './components/TransferPanel'
+import { bridge } from './bridge'
 import { useWorkbenchStore } from './store'
 
 const QueryEditor = lazy(() => import('./components/QueryEditor').then((module) => ({ default: module.QueryEditor })))
@@ -78,6 +79,32 @@ function App() {
   useEffect(() => {
     void initialize()
   }, [initialize])
+
+  useEffect(() => bridge.subscribeAppCommands((command) => {
+    const workbench = useWorkbenchStore.getState()
+    switch (command) {
+      case 'NEW_QUERY':
+        workbench.setActiveView('query')
+        workbench.addQueryTab()
+        break
+      case 'EXECUTE_QUERY':
+        workbench.setActiveView('query')
+        void workbench.executeQuery()
+        break
+      case 'SHOW_QUERY':
+        workbench.setActiveView('query')
+        break
+      case 'SHOW_CONNECTIONS':
+        workbench.setActiveView('connections')
+        break
+      case 'SHOW_TASKS':
+        workbench.setActiveView('tasks')
+        break
+      case 'SHOW_SETTINGS':
+        workbench.setActiveView('settings')
+        break
+    }
+  }), [])
 
   return (
     <div className="app-shell">

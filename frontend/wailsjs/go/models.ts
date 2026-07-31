@@ -452,6 +452,22 @@ export namespace main {
 		}
 	}
 	
+	export class RuntimePlatform {
+	    os: string;
+	    arch: string;
+	    primaryModifier: string;
+
+	    static createFrom(source: any = {}) {
+	        return new RuntimePlatform(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.os = source["os"];
+	        this.arch = source["arch"];
+	        this.primaryModifier = source["primaryModifier"];
+	    }
+	}
 	export class RuntimeStatus {
 	    ready: boolean;
 	    startupCode?: string;

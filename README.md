@@ -5,7 +5,7 @@
 <h1 align="center">InfluxDesk</h1>
 
 <p align="center">
-  面向 Windows 和 InfluxDB 1.x 的桌面查询与数据管理工具
+  面向 Windows、macOS 和 InfluxDB 1.x 的桌面查询与数据管理工具
 </p>
 
 <p align="center">
@@ -19,11 +19,12 @@
 <p align="center">
   <a href="https://github.com/betterball-coding/influxdbDesk/actions/workflows/ci.yml"><img src="https://github.com/betterball-coding/influxdbDesk/actions/workflows/ci.yml/badge.svg" alt="CI status"></a>
   <img src="https://img.shields.io/badge/platform-Windows%2011-0078D4" alt="Windows 11">
+  <img src="https://img.shields.io/badge/platform-macOS%2012%2B-111111" alt="macOS 12 or later">
   <img src="https://img.shields.io/badge/InfluxDB-1.x-22ADF6" alt="InfluxDB 1.x">
   <img src="https://img.shields.io/badge/InfluxQL-supported-00897B" alt="InfluxQL supported">
 </p>
 
-InfluxDesk 是一个专注于 InfluxDB 1.x 的中文桌面工作台。它把连接管理、Schema 浏览、InfluxQL 编辑、查询结果分析、受保护的数据变更，以及逻辑导入导出放在同一个 Windows 应用中，适合日常排查、数据核对和受控运维。
+InfluxDesk 是一个专注于 InfluxDB 1.x 的中文桌面工作台。它把连接管理、Schema 浏览、InfluxQL 编辑、查询结果分析、受保护的数据变更，以及逻辑导入导出放在同一个 Windows 或 macOS 应用中，适合日常排查、数据核对和受控运维。
 
 ![InfluxDesk 查询工作台](design-prototypes/screenshots/concept-a-query.png)
 
@@ -35,7 +36,7 @@ InfluxDesk 是一个专注于 InfluxDB 1.x 的中文桌面工作台。它把连�
 - **安全变更**：连接默认处于写入保护状态；写操作必须先预览影响，再通过一次性授权执行。
 - **逻辑导入导出**：支持 Line Protocol、CSV 和 JSONL 等导入预检，提供可恢复任务、checkpoint、分片导出与人工事故决策。
 - **本地持久化**：保存连接配置、查询任务和传输状态，应用重启后可以恢复未完成任务。
-- **Windows 凭据保护**：敏感连接信息通过 Windows Credential Manager、DPAPI 等系统能力保护，不写入普通日志或任务正文。
+- **系统凭据保护**：Windows 使用 Credential Manager，macOS 使用 Keychain Services；敏感连接信息不写入普通日志或任务正文。
 
 ## 界面预览
 
@@ -62,10 +63,13 @@ InfluxDesk 是一个专注于 InfluxDB 1.x 的中文桌面工作台。它把连�
 
 > v0.1.0 是功能预览版，EXE 尚未进行 Authenticode 商业代码签名。Windows SmartScreen 可能显示未知发布者提示，请只从本仓库 Releases 下载，并在运行前核对 SHA-256。
 
+当前 v0.1.0 Release 仍只提供 Windows x64 包。macOS universal 构建链及本机构建方式见 [macOS 构建与发布](docs/MACOS_BUILD.md)；在 Developer ID 签名、公证和真实 Mac 验收完成前，不把 CI 的 ad-hoc 包作为正式下载发布。
+
 ### 系统要求
 
 - Windows 11 x64，建议 23H2 或 24H2。
 - Microsoft Edge WebView2 Evergreen Runtime。
+- macOS 12 或更高版本，支持 Apple Silicon 和 Intel，使用系统 WKWebView。
 - InfluxDB OSS 1.8.10 或 1.12.4；1.7.10 作为兼容性目标。
 - 仅支持 InfluxQL 和 InfluxDB 1.x HTTP API，不支持 Flux、SQL、InfluxDB 2.x/3.x。
 
@@ -83,6 +87,7 @@ InfluxDesk 是一个专注于 InfluxDB 1.x 的中文桌面工作台。它把连�
 - 写操作默认锁定；永久只读连接不能通过界面升级为可写连接。
 - 查询结果中的大整数和高精度数值以文本语义保留，图表仅使用显式的非权威数值投影。
 - v0.1.0 尚未完成商业代码签名、完整 Windows VM 安装生命周期和真实生产环境认证，不应直接作为无人值守生产发布。
+- macOS 版本尚需在真实 Apple Silicon/Intel 主机上完成 Cocoa、Keychain、Gatekeeper、Developer ID 签名与 Apple 公证验收。
 
 更完整的实现范围、测试门禁和未完成事项见 [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)。
 
@@ -102,6 +107,12 @@ go vet ./...
 wails build -platform windows/amd64 -clean -m -nopackage -webview2 error -nocolour
 ```
 
+macOS 必须在真实 Mac 上构建：
+
+```bash
+scripts/build-macos.sh universal
+```
+
 浏览器开发模式使用确定性 mock 数据；原生 Wails 模式使用真实 Go 绑定，后端错误不会静默回退到 mock。
 
 ## 项目结构
@@ -112,6 +123,7 @@ wails build -platform windows/amd64 -clean -m -nopackage -webview2 error -nocolo
 - `internal/operation`、`internal/protection`：变更预览、写入保护和一次性授权。
 - `internal/transfer`、`internal/importworker`、`internal/exportworker`：逻辑导入导出与恢复。
 - `build/windows/wix`：Windows x64 WiX MSI 工程。
+- `build/darwin`、`scripts/build-macos.sh`：macOS bundle 配置与 universal ZIP/DMG 构建链。
 
 ## 反馈与贡献
 

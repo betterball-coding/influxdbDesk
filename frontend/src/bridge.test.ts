@@ -25,7 +25,36 @@ describe('native bridge', () => {
     expect(bridge.supportsTaskEventSync()).toBe(false)
     const unsubscribe = bridge.subscribeTaskChanges(() => undefined)
     unsubscribe()
+    bridge.subscribeAppCommands(() => undefined)()
     expect(runtimeReads).toBe(0)
+  })
+
+  it('subscribes to validated native menu commands and reads the runtime platform', async () => {
+    const getRuntimePlatform = vi.fn(async () => ({
+      os: 'darwin', arch: 'arm64', primaryModifier: 'Command',
+    }))
+    let eventCallback: ((command: unknown) => void) | undefined
+    const unsubscribe = vi.fn()
+    window.go = { main: { App: { GetRuntimePlatform: getRuntimePlatform } } }
+    window.runtime = {
+      EventsOnMultiple: vi.fn((_name, callback) => {
+        eventCallback = callback
+        return unsubscribe
+      }),
+    }
+    const listener = vi.fn()
+
+    const stop = bridge.subscribeAppCommands(listener)
+    eventCallback?.('NEW_QUERY')
+    eventCallback?.('INVALID_COMMAND')
+
+    expect(listener).toHaveBeenCalledTimes(1)
+    expect(listener).toHaveBeenCalledWith('NEW_QUERY')
+    expect(await bridge.getRuntimePlatform()).toEqual({
+      os: 'darwin', arch: 'arm64', primaryModifier: 'Command',
+    })
+    stop()
+    expect(unsubscribe).toHaveBeenCalledOnce()
   })
 
   it('preserves exact scalar text through session and page APIs', async () => {
