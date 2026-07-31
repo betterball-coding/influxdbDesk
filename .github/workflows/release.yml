@@ -168,7 +168,7 @@ jobs:
             "$hash  $($_.Name)"
           } | Set-Content .\release\windows\SHA256SUMS_WINDOWS.txt -Encoding ascii
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: InfluxDesk-${{ needs.verify.outputs.version }}-windows-signed
           retention-days: 14
@@ -249,7 +249,7 @@ jobs:
         if: always()
         run: security delete-keychain '${{ steps.keychain.outputs.path }}' || true
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: InfluxDesk-${{ needs.verify.outputs.version }}-macos-notarized
           retention-days: 14

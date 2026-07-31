@@ -107,7 +107,7 @@ jobs:
           $actual = (Get-Item .\build\bin\InfluxDesk.exe).VersionInfo.ProductVersion
           if ($actual -ne $expected) { throw "Executable version is $actual, expected $expected." }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: unsigned-ci-windows-x64
           retention-days: 7
@@ -157,7 +157,7 @@ jobs:
           lipo -archs build/bin/InfluxDesk.app/Contents/MacOS/InfluxDesk | grep arm64
           lipo -archs build/bin/InfluxDesk.app/Contents/MacOS/InfluxDesk | grep x86_64
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: adhoc-ci-macos-universal
           retention-days: 7
