@@ -9,7 +9,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -392,10 +391,6 @@ func (c *StagingFileCoordinator) removeRegularStagingFile(path string) error {
 		return ErrStageFileCleanup
 	}
 	return nil
-}
-
-func sameStagingPath(left, right string) bool {
-	return sameStagingPathForOS(runtime.GOOS, left, right)
 }
 
 func sameStagingPathForOS(goos, left, right string) bool {

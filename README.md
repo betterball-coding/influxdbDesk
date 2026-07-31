@@ -110,7 +110,7 @@ npm run build
 cd ..
 go test ./...
 go vet ./...
-wails build -platform windows/amd64 -clean -m -nopackage -webview2 error -nocolour
+wails build -platform windows/amd64 -clean -m -webview2 error -nocolour
 ```
 
 Windows 10 x64 安装包使用内嵌 WebView2 bootstrapper 的固定构建入口，避免 Win10 设备缺少运行时：

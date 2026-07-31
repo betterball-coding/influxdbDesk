@@ -87,15 +87,16 @@ jobs:
           npm run build
 
       - name: Test Windows implementation
-        run: |
-          go test ./...
-          go vet ./...
+        run: go test ./...
+
+      - name: Vet Windows implementation
+        run: go vet ./...
 
       - name: Install pinned Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
 
       - name: Build unsigned Windows CI executable
-        run: wails build -platform windows/amd64 -clean -m -nopackage -webview2 error -nocolour -trimpath -s -skipbindings
+        run: wails build -platform windows/amd64 -clean -m -webview2 error -nocolour -trimpath -s -skipbindings
 
       - name: Verify Windows artifact
         shell: pwsh

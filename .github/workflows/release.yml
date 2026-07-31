@@ -106,7 +106,9 @@ jobs:
           npm run build
           Pop-Location
           go test ./...
+          if ($LASTEXITCODE -ne 0) { throw 'Windows tests failed.' }
           go vet ./...
+          if ($LASTEXITCODE -ne 0) { throw 'Windows vet failed.' }
 
       - name: Install pinned Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
@@ -132,7 +134,7 @@ jobs:
         shell: pwsh
         run: |
           $ldflags = "-X github.com/influxdesk/influxdesk/internal/update.EmbeddedChannelPublicKeyBase64=$env:UPDATE_PUBLIC_KEY_BASE64"
-          wails build -platform windows/amd64 -clean -m -nopackage -webview2 error -o InfluxDesk.exe -nocolour -trimpath -s -skipbindings -ldflags $ldflags
+          wails build -platform windows/amd64 -clean -m -webview2 error -o InfluxDesk.exe -nocolour -trimpath -s -skipbindings -ldflags $ldflags
           .\scripts\sign-windows-artifact.ps1 -Path .\build\bin\InfluxDesk.exe
           dotnet build .\build\windows\wix\InfluxDesk.wixproj `
             -c Release `

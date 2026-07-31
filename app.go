@@ -9,6 +9,7 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"path"
 	"path/filepath"
 	goruntime "runtime"
 	"sort"
@@ -727,7 +728,7 @@ func queryResultCSVFilename(suggested string) string {
 }
 
 func queryResultCSVFilenameForPlatform(suggested, goos string) string {
-	name := strings.TrimSpace(filepath.Base(suggested))
+	name := strings.TrimSpace(path.Base(suggested))
 	if name == "" || name == "." {
 		name = "query-result"
 	}

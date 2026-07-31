@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
+	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
 
-const privateDirectorySDDLPrefix = "D:P"
+const privateDirectoryFileAllAccess windows.ACCESS_MASK = 0x1f01ff
 
 // PreparePrivateRoot creates and verifies %LOCALAPPDATA%\InfluxDesk before any sensitive file is opened.
 func PreparePrivateRoot() (string, error) {
@@ -64,7 +64,7 @@ func applyPrivateDACL(path string) error {
 	if err := windows.SetNamedSecurityInfo(path, windows.SE_FILE_OBJECT, flags, nil, nil, dacl, nil); err != nil {
 		return err
 	}
-	return verifyPrivateDACL(path, userSID)
+	return verifyPrivateDACL(path, user.User.Sid)
 }
 
 func PreparePrivateSubdir(root, name string) (string, error) {
@@ -123,7 +123,7 @@ func requireDirectory(path string) error {
 	return nil
 }
 
-func verifyPrivateDACL(path, userSID string) error {
+func verifyPrivateDACL(path string, userSID *windows.SID) error {
 	descriptor, err := windows.GetNamedSecurityInfo(path, windows.SE_FILE_OBJECT, windows.DACL_SECURITY_INFORMATION)
 	if err != nil {
 		return err
@@ -131,8 +131,40 @@ func verifyPrivateDACL(path, userSID string) error {
 	if descriptor == nil {
 		return errors.New("private data root has no security descriptor")
 	}
-	sddl := descriptor.String()
-	if !strings.HasPrefix(sddl, privateDirectorySDDLPrefix) || !strings.Contains(sddl, ";;;SY)") || !strings.Contains(sddl, ";;;"+userSID+")") {
+	control, _, err := descriptor.Control()
+	if err != nil || control&windows.SE_DACL_PROTECTED == 0 {
+		return errors.New("private data root DACL verification failed")
+	}
+	dacl, defaulted, err := descriptor.DACL()
+	if err != nil || dacl == nil || defaulted || dacl.AceCount != 2 {
+		return errors.New("private data root DACL verification failed")
+	}
+	systemSID, err := windows.CreateWellKnownSid(windows.WinLocalSystemSid)
+	if err != nil {
+		return err
+	}
+	var userAllowed, systemAllowed bool
+	for index := uint16(0); index < dacl.AceCount; index++ {
+		var ace *windows.ACCESS_ALLOWED_ACE
+		if err := windows.GetAce(dacl, uint32(index), &ace); err != nil {
+			return err
+		}
+		if ace.Header.AceType != windows.ACCESS_ALLOWED_ACE_TYPE ||
+			ace.Header.AceFlags != windows.OBJECT_INHERIT_ACE|windows.CONTAINER_INHERIT_ACE ||
+			ace.Mask != privateDirectoryFileAllAccess {
+			return errors.New("private data root DACL verification failed")
+		}
+		sid := (*windows.SID)(unsafe.Pointer(&ace.SidStart))
+		switch {
+		case sid.Equals(userSID) && !userAllowed:
+			userAllowed = true
+		case sid.Equals(systemSID) && !systemAllowed:
+			systemAllowed = true
+		default:
+			return errors.New("private data root DACL verification failed")
+		}
+	}
+	if !userAllowed || !systemAllowed {
 		return errors.New("private data root DACL verification failed")
 	}
 	return rejectReparsePoint(path)

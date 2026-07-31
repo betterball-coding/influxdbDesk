@@ -119,7 +119,7 @@ npm audit --audit-level=moderate
 Windows 可编译性门禁：
 
 ```bash
-wails build -platform windows/amd64 -clean -m -nopackage -webview2 error -nocolour
+wails build -platform windows/amd64 -clean -m -webview2 error -nocolour
 ```
 
 最后一条仅证明能够生成未签名 Windows 产物；正式完成仍以认证 VM 上的真实 WiX MSI、Authenticode、升级/回滚/卸载和 InfluxDB 契约结果为准。
