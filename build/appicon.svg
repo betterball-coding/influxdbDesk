@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">InfluxDesk application icon</title>
+  <desc id="desc">A desktop window containing a database and a time-series pulse.</desc>
+  <defs>
+    <clipPath id="window-clip">
+      <rect x="56" y="56" width="912" height="912" rx="208" />
+    </clipPath>
+  </defs>
+
+  <rect x="56" y="56" width="912" height="912" rx="208" fill="#17242a" />
+  <g clip-path="url(#window-clip)">
+    <rect x="56" y="56" width="912" height="188" fill="#244148" />
+    <rect x="56" y="232" width="912" height="12" fill="#0e181d" opacity="0.72" />
+  </g>
+
+  <circle cx="152" cy="150" r="22" fill="#65d7ca" />
+  <circle cx="220" cy="150" r="22" fill="#6aade0" />
+  <circle cx="288" cy="150" r="22" fill="#e3a843" />
+
+  <path
+    d="M272 408c0-72 107-130 240-130s240 58 240 130v258c0 72-107 130-240 130s-240-58-240-130V408Z"
+    fill="#effffb"
+  />
+  <ellipse cx="512" cy="408" rx="240" ry="130" fill="#d9efed" />
+  <ellipse cx="512" cy="392" rx="196" ry="88" fill="#effffb" />
+
+  <path d="M272 516c0 72 107 130 240 130s240-58 240-130" fill="none" stroke="#b8d6d4" stroke-width="32" />
+  <path d="M272 638c0 72 107 130 240 130s240-58 240-130" fill="none" stroke="#b8d6d4" stroke-width="32" />
+
+  <path
+    d="M316 575h92l54-82 76 174 64-118h70l46-67"
+    fill="none"
+    stroke="#087d72"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="42"
+  />
+  <circle cx="718" cy="482" r="31" fill="#e3a843" stroke="#effffb" stroke-width="14" />
+
+  <rect x="56" y="56" width="912" height="912" rx="208" fill="none" stroke="#2f4c52" stroke-width="20" />
+</svg>
