@@ -1,4 +1,4 @@
-import { Bell, Database, Moon, Palette, Shield, Sun, Terminal, Trash2 } from 'lucide-react'
+import { Bell, Clock3, Database, Moon, Palette, Shield, Sun, Terminal, Trash2 } from 'lucide-react'
 import { useWorkbenchStore } from '../store'
 
 export function SettingsPage() {
@@ -6,6 +6,8 @@ export function SettingsPage() {
   const setTheme = useWorkbenchStore((state) => state.setTheme)
   const assistantOpen = useWorkbenchStore((state) => state.assistantOpen)
   const toggleAssistant = useWorkbenchStore((state) => state.toggleAssistant)
+  const queryResultTimeZone = useWorkbenchStore((state) => state.queryResultTimeZone)
+  const setQueryResultTimeZone = useWorkbenchStore((state) => state.setQueryResultTimeZone)
 
   return (
     <main className="page-surface settings-page">
@@ -30,6 +32,30 @@ export function SettingsPage() {
             </div>
             <div className="setting-row"><div><strong>信息密度</strong><span>调整列表、树和结果表格的行高</span></div><div className="theme-selector"><button className="is-active">舒适</button><button>紧凑</button></div></div>
             <div className="setting-row"><div><strong>查询辅助面板</strong><span>新查询默认显示可视化构建器</span></div><label className="switch"><input type="checkbox" checked={assistantOpen} onChange={toggleAssistant} /><i /></label></div>
+          </section>
+          <section className="settings-section">
+            <header><h2>查询结果</h2><p>控制查询结果中时间戳的显示方式</p></header>
+            <div className="setting-row">
+              <div><strong>时间时区</strong><span>只调整查询结果显示，不改变 InfluxDB 中的原始时间戳</span></div>
+              <div aria-label="查询结果时间时区" className="theme-selector" role="group">
+                <button
+                  aria-pressed={queryResultTimeZone === 'utc+8'}
+                  className={queryResultTimeZone === 'utc+8' ? 'is-active' : ''}
+                  onClick={() => setQueryResultTimeZone('utc+8')}
+                  type="button"
+                >
+                  <Clock3 size={14} /> 东八区 (UTC+8)
+                </button>
+                <button
+                  aria-pressed={queryResultTimeZone === 'utc'}
+                  className={queryResultTimeZone === 'utc' ? 'is-active' : ''}
+                  onClick={() => setQueryResultTimeZone('utc')}
+                  type="button"
+                >
+                  零时区 (UTC)
+                </button>
+              </div>
+            </div>
           </section>
           <section className="settings-section">
             <header><h2>安全</h2><p>所有写操作均通过预览与一次性授权执行</p></header>

@@ -25,6 +25,7 @@ import {
 } from '../chartPrecision'
 import { downloadQueryResultCSV, queryResultFilename } from '../queryResultCsv'
 import { formatTimestampNs } from '../timestampFormat'
+import type { QueryResultTimeZone } from '../timestampFormat'
 import type { QueryResult, ResultColumn, TypedScalar } from '../types'
 import { IconButton } from './IconButton'
 
@@ -35,8 +36,8 @@ const MIN_COLUMN_WIDTH = 72
 const MAX_COLUMN_WIDTH = 800
 const EXACT_SCALAR_KINDS = new Set(['timestamp_ns', 'int64', 'uint64'])
 
-function resultCellDisplayText(value: TypedScalar | undefined): string {
-  if (value?.kind === 'timestamp_ns') return formatTimestampNs(value.decimalText)
+function resultCellDisplayText(value: TypedScalar | undefined, timeZone: QueryResultTimeZone): string {
+  if (value?.kind === 'timestamp_ns') return formatTimestampNs(value.decimalText, timeZone)
   return scalarDisplayText(value)
 }
 
@@ -61,6 +62,7 @@ function clampColumnWidth(width: number): number {
 
 interface ResultGridProps {
   result: QueryResult
+  timeZone?: QueryResultTimeZone
   selectedRowIds?: ReadonlySet<string>
   onSelectedRowsChange?: (rowIds: Set<string>) => void
 }
@@ -69,6 +71,7 @@ const EMPTY_ROW_SELECTION: ReadonlySet<string> = new Set()
 
 export function ResultGrid({
   result,
+  timeZone = 'utc+8',
   selectedRowIds = EMPTY_ROW_SELECTION,
   onSelectedRowsChange,
 }: ResultGridProps) {
@@ -294,7 +297,7 @@ export function ResultGrid({
               </label>
               {result.columns.map((column) => {
                 const value = row.cells[column.key]
-                const displayText = resultCellDisplayText(value)
+                const displayText = resultCellDisplayText(value, timeZone)
                 return (
                   <span
                     key={column.key}
@@ -328,7 +331,13 @@ function safeExportError(error: unknown): string {
   return '导出失败，请稍后重试。'
 }
 
-export function ResultChart({ result }: { result: QueryResult }) {
+export function ResultChart({
+  result,
+  timeZone = 'utc+8',
+}: {
+  result: QueryResult
+  timeZone?: QueryResultTimeZone
+}) {
   const chartRef = useRef<HTMLDivElement>(null)
   const [allowApproximate, setAllowApproximate] = useState(false)
   const projection = useMemo(
@@ -364,7 +373,7 @@ export function ResultChart({ result }: { result: QueryResult }) {
           formatter: (items: unknown) => {
             const list = Array.isArray(items) ? items : [items]
             const item = list[0] as { dataIndex?: number } | undefined
-            return formatChartTooltip(result, projection, item?.dataIndex ?? -1)
+            return formatChartTooltip(result, projection, item?.dataIndex ?? -1, timeZone)
           },
         },
         xAxis: {
@@ -372,7 +381,7 @@ export function ResultChart({ result }: { result: QueryResult }) {
           axisLabel: {
             color: '#788491',
             hideOverlap: true,
-            formatter: (value: number) => formatProjectedAxisValue(xAxis, value),
+            formatter: (value: number) => formatProjectedAxisValue(xAxis, value, timeZone),
           },
           axisLine: { lineStyle: { color: '#d7dde2' } },
           axisTick: { show: false },
@@ -382,7 +391,7 @@ export function ResultChart({ result }: { result: QueryResult }) {
           axisLabel: {
             color: '#788491',
             hideOverlap: true,
-            formatter: (value: number) => formatProjectedAxisValue(yAxis, value),
+            formatter: (value: number) => formatProjectedAxisValue(yAxis, value, timeZone),
           },
           splitLine: { lineStyle: { color: '#edf0f2' } },
         },
@@ -409,7 +418,7 @@ export function ResultChart({ result }: { result: QueryResult }) {
       disposed = true
       cleanup()
     }
-  }, [projection, result])
+  }, [projection, result, timeZone])
 
   const precisionToggle = (projection.approximateAvailable || allowApproximate) ? (
     <label className="chart-precision-toggle">
@@ -480,6 +489,7 @@ export function ResultPane() {
   const result = useWorkbenchStore((state) => state.result)
   const queryState = useWorkbenchStore((state) => state.queryState)
   const queryError = useWorkbenchStore((state) => state.queryError)
+  const queryResultTimeZone = useWorkbenchStore((state) => state.queryResultTimeZone)
   const [view, setView] = useState<'table' | 'chart' | 'messages'>('table')
   const [rowSelection, setRowSelection] = useState<{ sessionId: string; ids: Set<string> }>({
     sessionId: '',
@@ -516,7 +526,7 @@ export function ResultPane() {
         rowCount = response.rowCount
       } else {
         const rows = allRows ? result.rows : selectedRows
-        downloadQueryResultCSV(result, rows)
+        downloadQueryResultCSV(result, rows, queryResultTimeZone)
         rowCount = String(rows.length)
       }
       setExportStatus({ sessionId: result.sessionId, tone: 'success', text: `已导出 ${rowCount} 行查询结果。` })
@@ -603,9 +613,10 @@ export function ResultPane() {
             onSelectedRowsChange={(ids) => setRowSelection({ sessionId: result.sessionId, ids })}
             result={result}
             selectedRowIds={selectedRowIds}
+            timeZone={queryResultTimeZone}
           />
         ) : view === 'chart' ? (
-          <ResultChart result={result} />
+          <ResultChart result={result} timeZone={queryResultTimeZone} />
         ) : (
           <div className="messages-view">
             <div><span className="message-level message-level--success">SUCCESS</span><strong>查询完成</strong><time>{result.elapsedMs} ms</time></div>

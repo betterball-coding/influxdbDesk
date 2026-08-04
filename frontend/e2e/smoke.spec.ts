@@ -143,6 +143,33 @@ test('query precision and protected mutation workflow remain safe', async ({ pag
   expect(consoleIssues).toEqual([])
 })
 
+test('query result time zone switches between UTC+8 and UTC and persists', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await page.locator('.command-button--primary').click()
+
+  const timestampLabels = await page.evaluate(async (timestamp) => {
+    const { formatTimestampNs } = await import('/src/timestampFormat.ts')
+    return {
+      east8: formatTimestampNs(timestamp, 'utc+8'),
+      utc: formatTimestampNs(timestamp, 'utc'),
+    }
+  }, rawTimestamp)
+  await expect(page.getByText(timestampLabels.east8, { exact: true }).first()).toBeVisible()
+
+  await page.getByRole('button', { name: '设置', exact: true }).click()
+  const utcButton = page.getByRole('button', { name: '零时区 (UTC)', exact: true })
+  await utcButton.click()
+  await expect(utcButton).toHaveAttribute('aria-pressed', 'true')
+
+  await page.getByRole('button', { name: '查询工作台', exact: true }).click()
+  await expect(page.getByText(timestampLabels.utc, { exact: true }).first()).toBeVisible()
+  await expect(page.getByText(timestampLabels.east8, { exact: true })).toHaveCount(0)
+
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: '设置', exact: true }).click()
+  await expect(page.getByRole('button', { name: '零时区 (UTC)', exact: true })).toHaveAttribute('aria-pressed', 'true')
+})
+
 test('schema measurement selection binds the exact query and assistant context', async ({ page }) => {
   const telemetry = mockSchema.find((database) => database.name === 'telemetry')
   const cpu = telemetry?.measurements.find((measurement) => measurement.name === 'cpu')

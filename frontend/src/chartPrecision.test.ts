@@ -113,7 +113,7 @@ describe('chart precision projection', () => {
     expect(labels.every((label) => label.length <= 10)).toBe(true)
   })
 
-  it('always formats tooltip values from the original decimalText, including float -0', () => {
+  it('formats exact timestamps without losing nanoseconds and preserves float -0', () => {
     const result = resultFor('timestamp_ns', 'float64', [
       [decimal('timestamp_ns', '1700000000000000001'), decimal('float64', '-0')],
       [decimal('timestamp_ns', '1700000000000000002'), decimal('float64', '1.7976931348623157e+308')],
@@ -122,9 +122,12 @@ describe('chart precision projection', () => {
 
     const first = formatChartTooltip(result, projection, 0)
     const second = formatChartTooltip(result, projection, 1)
+    const firstUTC = formatChartTooltip(result, projection, 0, 'utc')
 
-    expect(first).toContain('1700000000000000001')
+    expect(first).toContain('2023-11-15 06:13:20.000000001')
+    expect(firstUTC).toContain('2023-11-14 22:13:20.000000001')
     expect(first).toContain('value&nbsp;&nbsp;-0')
+    expect(second).toContain('2023-11-15 06:13:20.000000002')
     expect(second).toContain('1.7976931348623157e+308')
     expect(first).toContain('&lt;cpu&gt;')
     expect(first).not.toContain('<strong><cpu>')

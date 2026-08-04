@@ -76,6 +76,24 @@ describe('ResultChart precision guard', () => {
 })
 
 describe('ResultGrid column resizing', () => {
+  it('renders timestamps in the selected query result time zone', () => {
+    const timestampResult: QueryResult = {
+      ...unsafeResult,
+      rows: [{
+        id: 'timezone-row',
+        cells: {
+          time: { kind: 'timestamp_ns', decimalText: '1785210300000000000' },
+          value: { kind: 'int64', decimalText: '1' },
+        },
+      }],
+    }
+    const view = render(<ResultGrid result={timestampResult} timeZone="utc+8" />)
+
+    expect(screen.getByText('2026-07-28 11:45:00')).toBeTruthy()
+    view.rerender(<ResultGrid result={timestampResult} timeZone="utc" />)
+    expect(screen.getByText('2026-07-28 03:45:00')).toBeTruthy()
+  })
+
   it('resizes a column with pointer movement and keyboard controls', () => {
     render(<ResultGrid result={unsafeResult} />)
     const header = document.querySelector('.result-grid-header') as HTMLDivElement

@@ -3,6 +3,7 @@ import { bridge } from './bridge'
 import type { ConnectionDraft, NativeConnectionSnapshot } from './bridge'
 import { defaultMeasurementQuery } from './influxql'
 import { mockConnections, mockSchema, mockTasks } from './mockData'
+import type { QueryResultTimeZone } from './timestampFormat'
 import type {
   ConnectionProfile,
   MutationOperationResult,
@@ -30,9 +31,28 @@ const makeRequestId = () => globalThis.crypto.randomUUID()
 let measurementSchemaRequest = 0
 let schemaLoadRequest = 0
 const measurementSchemaPromises = new Map<string, Promise<SchemaMeasurement>>()
+const QUERY_RESULT_TIME_ZONE_STORAGE_KEY = 'influxdesk.queryResultTimeZone.v1'
+
+function readQueryResultTimeZone(): QueryResultTimeZone {
+  try {
+    const stored = globalThis.localStorage?.getItem(QUERY_RESULT_TIME_ZONE_STORAGE_KEY)
+    return stored === 'utc' || stored === 'utc+8' ? stored : 'utc+8'
+  } catch {
+    return 'utc+8'
+  }
+}
+
+function persistQueryResultTimeZone(timeZone: QueryResultTimeZone): void {
+  try {
+    globalThis.localStorage?.setItem(QUERY_RESULT_TIME_ZONE_STORAGE_KEY, timeZone)
+  } catch {
+    // Some WebView privacy modes can deny storage; the in-memory setting still works.
+  }
+}
 
 interface WorkbenchState {
   theme: 'light' | 'dark'
+  queryResultTimeZone: QueryResultTimeZone
   activeView: 'query' | 'connections' | 'tasks' | 'settings'
   assistantOpen: boolean
   taskDrawerOpen: boolean
@@ -66,6 +86,7 @@ interface WorkbenchState {
   tasks: TransferTask[]
   initialize: () => Promise<void>
   setTheme: (theme: 'light' | 'dark') => void
+  setQueryResultTimeZone: (timeZone: QueryResultTimeZone) => void
   setActiveView: (view: WorkbenchState['activeView']) => void
   toggleAssistant: () => void
   setTaskDrawerOpen: (open: boolean) => void
@@ -93,6 +114,7 @@ interface WorkbenchState {
 
 export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
   theme: 'light',
+  queryResultTimeZone: readQueryResultTimeZone(),
   activeView: 'query',
   assistantOpen: false,
   taskDrawerOpen: false,
@@ -167,6 +189,10 @@ export const useWorkbenchStore = create<WorkbenchState>((set, get) => ({
   setTheme: (theme) => {
     document.documentElement.dataset.theme = theme
     set({ theme })
+  },
+  setQueryResultTimeZone: (queryResultTimeZone) => {
+    persistQueryResultTimeZone(queryResultTimeZone)
+    set({ queryResultTimeZone })
   },
   setActiveView: (activeView) => set({ activeView }),
   toggleAssistant: () => set((state) => ({ assistantOpen: !state.assistantOpen })),

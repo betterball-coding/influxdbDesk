@@ -1,4 +1,6 @@
 import type { QueryResult, ResultColumn, TypedScalar } from './types'
+import { formatTimestampNs } from './timestampFormat'
+import type { QueryResultTimeZone } from './timestampFormat'
 
 export const MAX_SAFE_BIGINT_DELTA = 9_007_199_254_740_991n
 
@@ -235,7 +237,12 @@ function escapeHTML(value: string): string {
     .replaceAll("'", '&#39;')
 }
 
-export function formatChartTooltip(result: QueryResult, projection: ChartProjection, dataIndex: number): string {
+export function formatChartTooltip(
+  result: QueryResult,
+  projection: ChartProjection,
+  dataIndex: number,
+  timeZone: QueryResultTimeZone = 'utc+8',
+): string {
   const point = projection.points[dataIndex]
   const xColumn = projection.xAxis?.column
   const yColumn = projection.yAxis?.column
@@ -245,13 +252,22 @@ export function formatChartTooltip(result: QueryResult, projection: ChartProject
   return [
     '<div class="chart-tip">',
     `<strong>${escapeHTML(result.seriesName)}</strong><br/>`,
-    `${escapeHTML(xColumn.label)}&nbsp;&nbsp;${escapeHTML(scalarDisplayText(row.cells[xColumn.key]))}<br/>`,
-    `${escapeHTML(yColumn.label)}&nbsp;&nbsp;${escapeHTML(scalarDisplayText(row.cells[yColumn.key]))}`,
+    `${escapeHTML(xColumn.label)}&nbsp;&nbsp;${escapeHTML(formatTooltipScalar(row.cells[xColumn.key], timeZone))}<br/>`,
+    `${escapeHTML(yColumn.label)}&nbsp;&nbsp;${escapeHTML(formatTooltipScalar(row.cells[yColumn.key], timeZone))}`,
     '</div>',
   ].join('')
 }
 
-export function formatProjectedAxisValue(axis: ProjectedAxis, value: number): string {
+function formatTooltipScalar(value: TypedScalar | undefined, timeZone: QueryResultTimeZone): string {
+  if (value?.kind === 'timestamp_ns') return formatTimestampNs(value.decimalText, timeZone)
+  return scalarDisplayText(value)
+}
+
+export function formatProjectedAxisValue(
+  axis: ProjectedAxis,
+  value: number,
+  timeZone: QueryResultTimeZone = 'utc+8',
+): string {
   if (axis.approximate) {
     if (!Number.isFinite(value)) return ''
     if (value === 0) return '0'
@@ -261,12 +277,6 @@ export function formatProjectedAxisValue(axis: ProjectedAxis, value: number): st
   if (axis.bigintOrigin === undefined || !Number.isSafeInteger(value)) return String(value)
   const exact = axis.bigintOrigin + BigInt(value)
   if (axis.column.kind !== 'timestamp_ns') return exact.toString()
-  const milliseconds = exact / 1_000_000n
-  if (milliseconds < -MAX_SAFE_BIGINT_DELTA || milliseconds > MAX_SAFE_BIGINT_DELTA) return exact.toString()
-  const numericMilliseconds = Number(milliseconds)
-  try {
-    return new Date(numericMilliseconds).toISOString().slice(11, 19)
-  } catch {
-    return exact.toString()
-  }
+  const formatted = formatTimestampNs(exact.toString(), timeZone)
+  return formatted === exact.toString() ? formatted : formatted.slice(11, 19)
 }

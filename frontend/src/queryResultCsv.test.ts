@@ -38,6 +38,15 @@ describe('query result CSV', () => {
     expect(queryResultFilename(result.seriesName)).toBe('cpu_load-query-result.csv')
   })
 
+  it('uses the configured query result time zone', () => {
+    const east8 = buildQueryResultCSV(result, result.rows, 'utc+8')
+    const utc = buildQueryResultCSV(result, result.rows, 'utc')
+
+    expect(east8).not.toBe(utc)
+    expect(east8).toContain('2023-11-15 06:13:20.123456788')
+    expect(utc).toContain('2023-11-14 22:13:20.123456788')
+  })
+
   it('neutralizes formula-like text while preserving typed negative numbers', () => {
     const unsafe: QueryResult = {
       ...result,
